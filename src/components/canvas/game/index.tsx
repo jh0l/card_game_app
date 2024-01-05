@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { Suspense, useState } from 'react'
 /*
 import dynamic from 'next/dynamic'
 const View = dynamic(() => import('@/components/canvas/View').then((mod) => mod.View), {
@@ -26,8 +26,9 @@ import Hand from '@/components/canvas/game/Hand'
 //*/
 
 export function GameView() {
+  const [active, setActive] = useState(false)
   return (
-    <View className='mx-auto h-full w-full max-w-screen-lg bg-pink-100'>
+    <View orbit={!active} className='mx-auto h-full w-full max-w-screen-lg bg-pink-100'>
       <Suspense fallback={null}>
         <Duck position={[0, -0.6, -3]} scale={1} rotation={[0.0, -0.3, 0]} />
       </Suspense>
@@ -35,7 +36,7 @@ export function GameView() {
         <Dog position={[0, 1, -4]} scale={1} rotation={[0.0, -0.3, 0]} />
       </Suspense>
       <Suspense fallback={null}>
-        <Hand />
+        <Hand setActive={setActive} />
       </Suspense>
       <Suspense fallback={null}>
         <Common />
