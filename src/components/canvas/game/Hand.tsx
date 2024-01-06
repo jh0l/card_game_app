@@ -3,6 +3,7 @@ import { useDrag } from '@use-gesture/react'
 import { useSpring, a } from '@react-spring/three'
 import { useEffect, useState } from 'react'
 import { Html } from '@react-three/drei'
+import { mapLinear } from '@/utils'
 
 const MASS = 1.3
 const CARDS = 7
@@ -71,17 +72,26 @@ function Card({ i }: { i: number; setActive: (active: boolean) => void }) {
     FAST_SHARED_STATE.active = down && i
 
     if (down) {
-      let x_ = ((x_init + x) / size.width - 0.5) * 2.5 // + pos.target.position[0]
+      let x_ = ((x_init + x) / size.width - 0.5) * 2.5
+
       // if drag is close enough to the top of the screen, bump the card up so at most above the hand
       //
+      const toBump = -25
       const isBump = y_init + y < size.height * 0.68
-      x_ = isBump
-        ? x_ * 2 * (size.width / size.height)
-        : Math.min(Math.max(x_, -viewport.width / 4), viewport.width / 4)
-      const bump = isBump ? 1.7 * (1 - -y / (size.height * 0.4)) : 1.7 * (1 - y_init / (size.height * 1.1)) * 2.5 + 0.2
+      x_ =
+        isBump || y > toBump
+          ? x_ * 2 * (size.width / size.height)
+          : Math.min(Math.max(x_, -viewport.width / 4), viewport.width / 4)
+      const bump = isBump
+        ? 1.7 * (1 - -y / (size.height * 0.4))
+        : y > toBump
+          ? mapLinear(y, 0, toBump, 0.6, 1.7 * (1 - y_init / (size.height * 1.1)) * 2.5 + 0.2)
+          : 1.7 * (1 - y_init / (size.height * 1.1)) * 2.5 + 0.2
       const y_ = -y / aspect + bump
       // setCoords([y_init, y, bump, y_])
-      const dragPos = [x_, y_, isBump ? -2.5 : 2] as Vec3
+      // increase zoom from 0.5 to 2 as y decreases from 0 to -10 then clamp to 1.7x
+      const zoom = mapLinear(y, 0, toBump, -2, 2)
+      const dragPos = [x_, y_, isBump ? -2.5 : zoom] as Vec3
       if (!isSame(pos.current.position, dragPos)) {
         setSpring.start({
           position: dragPos,
@@ -146,20 +156,14 @@ function Card({ i }: { i: number; setActive: (active: boolean) => void }) {
 }
 
 export default function Hand({ setActive }: { setActive: (active: boolean) => void }) {
-  const { viewport, size } = useThree()
-  const [transforms, setTransforms] = useState(
+  const [transforms] = useState(
     Array.from({ length: CARDS }, () => ({
       key: Math.random(),
     })),
   )
   return (
     <>
-      {/* <Html className='pointer-events-none'>
-        <div>bump: {size.height / 2}</div>
-        <div>
-          {size.width} {viewport.distance * viewport.width}
-        </div>
-      </Html> */}
+      {/* <Html className='pointer-events-none w-96 font-mono'></Html> */}
       <group position={[0, -1.6, 0]} rotation={[-0.1, 0, 0]}>
         {transforms.map(({ key }, i) => (
           <Card i={i} key={key} setActive={setActive} />
