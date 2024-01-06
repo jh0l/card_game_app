@@ -8,30 +8,28 @@ import { mapLinear } from '@/utils'
 const MASS = 1.3
 const CARDS = 7
 
+const { abs } = Math
+type PosRot = { position: Vec3; rotation: Vec3 }
+type Vec3 = [number, number, number]
+const zVec: Vec3 = [0, 0, 0] as const
+const zPositions: PosRot = { position: zVec, rotation: zVec }
+
 type FastSharedState = { active: number | false }
-const FAST_SHARED_STATE: FastSharedState = { active: false }
-type FastSelfState = [{ index: number }][]
-const FAST_SELF_STATE: FastSelfState = Array.from({ length: CARDS }).map((_, i) => [
+const SHARED_STATE: FastSharedState = { active: false }
+type FastSelfState = [{ index: number; current: PosRot }][]
+const SELF_STATE: FastSelfState = Array.from({ length: CARDS }).map((_, i) => [
   {
+    current: { position: zVec, rotation: zVec },
     index: i,
   },
 ])
-type Vec3 = [number, number, number]
-type PosRot = { position: Vec3; rotation: Vec3 }
-// current is the current position of the card, target is the position the card should be in when not being dragged
-// current is set to the dragged position when the card is active in FAST_STATE
-// current is set to target when the card is not active in FAST_STATE
-type Positions = { current: PosRot; target: PosRot }
-const zVec: Vec3 = [0, 0, 0] as const
-const zPositions: Positions = {
-  current: { position: zVec, rotation: zVec },
-  target: { position: zVec, rotation: zVec },
-}
 
-const POSITIONS: Positions[] = Array.from({ length: CARDS }).map((_, i) => ({
-  current: { position: zVec, rotation: zVec },
-  target: { position: zVec, rotation: zVec },
+const POSITIONS: PosRot[] = Array.from({ length: CARDS }).map((_, i) => ({
+  position: zVec,
+  rotation: zVec,
 }))
+
+const defaultRotation = [0, 0.2, 0] as Vec3
 
 function isSame(a: Vec3, b: Vec3) {
   return a[0] === b[0] && a[1] === b[1] && a[2] === b[2]
@@ -44,7 +42,7 @@ const COLORS = ['#ff6b6b', '#ffb26b', '#fbff6b', '#6bff8c', '#6bffff', '#6bb2ff'
 
 function Card({ i }: { i: number; setActive: (active: boolean) => void }) {
   const { size, viewport } = useThree()
-  const [coords, setCoords] = useState<any>([0, 0])
+  const [data, setData] = useState<any>([0, 0])
   const aspect = size.width / viewport.width
   useEffect(() => {
     // determines the position of the card based on its index, the number of cards and the width of the viewport
@@ -54,9 +52,8 @@ function Card({ i }: { i: number; setActive: (active: boolean) => void }) {
     const z = -2.9
     const pos = [x, 0, z] as Vec3
 
-    POSITIONS[i].target.position = pos
+    POSITIONS[i].position = pos
   }, [i, viewport])
-  const FAST = FAST_SELF_STATE[i]
   const [spring, setSpring] = useSpring(
     () => ({
       position: zVec,
@@ -66,17 +63,26 @@ function Card({ i }: { i: number; setActive: (active: boolean) => void }) {
     [zVec],
   )
   const bind = useDrag(({ movement: [x, y], down, event, initial: [x_init, y_init] }) => {
-    const pos = POSITIONS[FAST[0].index] || zPositions
+    const SELF = SELF_STATE[i][0]
+
     event.stopPropagation()
 
-    FAST_SHARED_STATE.active = down && i
+    SHARED_STATE.active = down && i
+    const flippingRotation = [0, 0.75, 0] as Vec3
 
     if (down) {
-      let x_ = ((x_init + x) / size.width - 0.5) * 2.5
+      // if card has not moved, rotate the card 45 degrees
+      if (x < 2 && x > -2 && y < 2 && y > -2) {
+        if (!isSame(SELF.current.rotation, flippingRotation)) {
+          setSpring.start({ rotation: flippingRotation })
+          SELF.current.rotation = flippingRotation
+        }
+      }
+      let x_ = ((x_init + x) / size.width - 0.5) * 2.75
 
       // if drag is close enough to the top of the screen, bump the card up so at most above the hand
       //
-      const toBump = -25
+      const toBump = -35
       const isBump = y_init + y < size.height * 0.68
       x_ =
         isBump || y > toBump
@@ -92,36 +98,60 @@ function Card({ i }: { i: number; setActive: (active: boolean) => void }) {
       // increase zoom from 0.5 to 2 as y decreases from 0 to -10 then clamp to 1.7x
       const zoom = mapLinear(y, 0, toBump, -2, 2)
       const dragPos = [x_, y_, isBump ? -2.5 : zoom] as Vec3
-      if (!isSame(pos.current.position, dragPos)) {
+      if (!isSame(SELF.current.position, dragPos)) {
         setSpring.start({
           position: dragPos,
         })
-        pos.current.position = dragPos
+        SELF.current.position = dragPos
       }
-      // update FAST_STATE
+      // distance drag has travelled on x axis
+      setData((x_init + x) / size.width)
+      // for POSITIONS, find the position closest to x_, and swap that cards index with the current cards index
+      const range = POSITIONS.map((x) => x.position[0])
+      const closest = range.reduce((prev, curr) => (abs(curr - x_) < abs(prev - x_) ? curr : prev))
+      const closestIndex = range.indexOf(closest)
+      const temp = SELF.index
+      SELF_STATE.find((x) => x[0].index === closestIndex)[0].index = temp
+      SELF.index = closestIndex
+    } else {
+      setSpring.start({
+        rotation: flippingRotation,
+      })
+      SELF.current.rotation = flippingRotation
     }
   })
 
   // the card is rotated to face the center of the circle of cards
   useFrame(() => {
-    const transform = POSITIONS[FAST[0].index] || zPositions
+    const SELF = SELF_STATE[i][0]
+
+    const { index } = SELF
+    const target = POSITIONS[index] || zPositions
+    const { active } = SHARED_STATE
     const [x, y, z] = spring.position.get()
-    const defaultRotation = [0, 0.2, 0] as Vec3
-    if (FAST_SHARED_STATE.active === i) {
+    if (active === i) {
       const rotation = [0, -x / 5, 0] as Vec3
-      if (!isSame(transform.current.rotation, rotation)) {
-        setSpring.start({ rotation })
-        transform.current.rotation = rotation
+      if (!isSame(SELF.current.rotation, rotation)) {
+        setTimeout(() => {
+          setSpring.start({ rotation })
+          SELF.current.rotation = rotation
+        }, 75)
       }
-    } else if (
-      !isSame(transform.target.rotation, defaultRotation) ||
-      !isSame(transform.target.position, transform.current.position)
-    ) {
-      transform.current.rotation = defaultRotation
-      transform.current.position = transform.target.position
+    } else if (true && active !== false) {
+      // if card index is < active index,
+      // else if card index is > active index, move card to the right
+      const offset = index > SELF_STATE[active][0].index ? 0.15 : -0.15
+      const xOff = target.position[0] + offset
+      if (!isSame(SELF.current.position, [xOff, y, z])) {
+        setSpring.start({ position: [xOff, y, z] })
+        SELF.current.position = [xOff, y, z]
+      }
+    } else if (!isSame(SELF.current.rotation, defaultRotation) || !isSame(SELF.current.position, target.position)) {
+      SELF.current.rotation = defaultRotation
+      SELF.current.position = target.position
       setSpring.start({
         rotation: defaultRotation,
-        position: transform.current.position,
+        position: target.position,
       })
     }
   })
@@ -132,13 +162,11 @@ function Card({ i }: { i: number; setActive: (active: boolean) => void }) {
     // <group position={transform}>
     <>
       <a.mesh {...spring} {...bindType} castShadow>
-        {/* <Html>
+        <Html>
           <div className='w-20 -translate-x-1/2 select-none break-before-all overflow-hidden'>
-            {JSON.stringify(coords, null, 2)}
-            <br />
-            {aspect}
+            {JSON.stringify(data, null, 2)}
           </div>
-        </Html> */}
+        </Html>
         <boxGeometry args={[1, 1.5, 0.01]} />
         <meshPhysicalMaterial
           color={COLORS[i]}
