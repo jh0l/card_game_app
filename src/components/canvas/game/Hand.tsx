@@ -2,6 +2,7 @@ import { Vector3, useFrame, useThree } from '@react-three/fiber'
 import { useDrag } from '@use-gesture/react'
 import { useSpring, a } from '@react-spring/three'
 import { useEffect, useState } from 'react'
+import { Html } from '@react-three/drei'
 
 const MASS = 1.3
 const CARDS = 7
@@ -9,7 +10,7 @@ const CARDS = 7
 type FastSharedState = { active: number | false }
 const FAST_SHARED_STATE: FastSharedState = { active: false }
 type FastSelfState = [{ index: number }][]
-const FAST_STATE: FastSelfState = Array.from({ length: CARDS }).map((_, i) => [
+const FAST_SELF_STATE: FastSelfState = Array.from({ length: CARDS }).map((_, i) => [
   {
     index: i,
   },
@@ -42,18 +43,19 @@ const COLORS = ['#ff6b6b', '#ffb26b', '#fbff6b', '#6bff8c', '#6bffff', '#6bb2ff'
 
 function Card({ i }: { i: number; setActive: (active: boolean) => void }) {
   const { size, viewport } = useThree()
+  const [coords, setCoords] = useState<any>([0, 0])
   const aspect = size.width / viewport.width
   useEffect(() => {
     // determines the position of the card based on its index, the number of cards and the width of the viewport
     // the card is positioned in a stack evenly spread from left of screeen to right of the viewport
-    const increment = viewport.width / CARDS
-    const x = increment * i - viewport.width / 2 + increment / 2.3
+    const increment = Math.min(viewport.width / CARDS, 1)
+    const x = (i - (CARDS - 1) / 2) * increment
     const z = -2.9
     const pos = [x, 0, z] as Vec3
 
     POSITIONS[i].target.position = pos
   }, [i, viewport])
-  const FAST = FAST_STATE[i]
+  const FAST = FAST_SELF_STATE[i]
   const [spring, setSpring] = useSpring(
     () => ({
       position: zVec,
@@ -62,22 +64,31 @@ function Card({ i }: { i: number; setActive: (active: boolean) => void }) {
     }),
     [zVec],
   )
-  const bind = useDrag(({ movement: [x, y], down, event }) => {
+  const bind = useDrag(({ movement: [x, y], down, event, initial: [x_init, y_init] }) => {
     const pos = POSITIONS[FAST[0].index] || zPositions
-
     event.stopPropagation()
 
     FAST_SHARED_STATE.active = down && i
 
     if (down) {
-      const y_ = Math.min((-y * 1.5) / aspect + 0.8, viewport.height / 1.7)
-      const dragPos = [x / aspect + pos.target.position[0] * 0.4 + i * 0.015, y_, 0.9] as Vec3
+      let x_ = ((x_init + x) / size.width - 0.5) * 2.5 // + pos.target.position[0]
+      // if drag is close enough to the top of the screen, bump the card up so at most above the hand
+      //
+      const isBump = y_init + y < size.height * 0.68
+      x_ = isBump
+        ? x_ * 2 * (size.width / size.height)
+        : Math.min(Math.max(x_, -viewport.width / 4), viewport.width / 4)
+      const bump = isBump ? 1.7 * (1 - -y / (size.height * 0.4)) : 1.7 * (1 - y_init / (size.height * 1.1)) * 2.5 + 0.2
+      const y_ = -y / aspect + bump
+      // setCoords([y_init, y, bump, y_])
+      const dragPos = [x_, y_, isBump ? -2.5 : 2] as Vec3
       if (!isSame(pos.current.position, dragPos)) {
         setSpring.start({
           position: dragPos,
         })
         pos.current.position = dragPos
       }
+      // update FAST_STATE
     }
   })
 
@@ -109,33 +120,51 @@ function Card({ i }: { i: number; setActive: (active: boolean) => void }) {
   const bindType = bind()
   return (
     // <group position={transform}>
-    <a.mesh {...spring} {...bindType} castShadow>
-      <boxGeometry args={[1, 1.5, 0.01]} />
-      <meshPhysicalMaterial
-        color={COLORS[i]}
-        iridescence={1}
-        iridescenceIOR={1}
-        iridescenceThicknessRange={[0, 1400]}
-        roughness={0.2}
-        clearcoat={0.5}
-        metalness={0.75}
-      />
-    </a.mesh>
+    <>
+      <a.mesh {...spring} {...bindType} castShadow>
+        {/* <Html>
+          <div className='w-20 -translate-x-1/2 select-none break-before-all overflow-hidden'>
+            {JSON.stringify(coords, null, 2)}
+            <br />
+            {aspect}
+          </div>
+        </Html> */}
+        <boxGeometry args={[1, 1.5, 0.01]} />
+        <meshPhysicalMaterial
+          color={COLORS[i]}
+          iridescence={1}
+          iridescenceIOR={1}
+          iridescenceThicknessRange={[0, 1400]}
+          roughness={0.2}
+          clearcoat={0.5}
+          metalness={0.75}
+        />
+      </a.mesh>
+    </>
     // </group>
   )
 }
 
 export default function Hand({ setActive }: { setActive: (active: boolean) => void }) {
+  const { viewport, size } = useThree()
   const [transforms, setTransforms] = useState(
     Array.from({ length: CARDS }, () => ({
       key: Math.random(),
     })),
   )
   return (
-    <group position={[0, -1.6, 0]} rotation={[-0.1, 0, 0]}>
-      {transforms.map(({ key }, i) => (
-        <Card i={i} key={key} setActive={setActive} />
-      ))}
-    </group>
+    <>
+      {/* <Html className='pointer-events-none'>
+        <div>bump: {size.height / 2}</div>
+        <div>
+          {size.width} {viewport.distance * viewport.width}
+        </div>
+      </Html> */}
+      <group position={[0, -1.6, 0]} rotation={[-0.1, 0, 0]}>
+        {transforms.map(({ key }, i) => (
+          <Card i={i} key={key} setActive={setActive} />
+        ))}
+      </group>
+    </>
   )
 }
