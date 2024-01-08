@@ -94,8 +94,11 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
       setSpring.start({ rotation: flippingRotation })
       SELF.current.rotation = flippingRotation
     }
-    if (last) {
+    if (last && SHARED_STATE.active) {
       setActive(false)
+      for (let i = 0; i < SELF_STATE.length; i++) {
+        SELF_STATE[i][0].index = SHARED_STATE.active.POSITIONS[i]
+      }
       SHARED_STATE.active = false
     }
     if (SHARED_STATE.active) {
