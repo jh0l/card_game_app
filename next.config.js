@@ -25,7 +25,7 @@ const nextConfig = {
     }
     // audio support
     config.module.rules.push({
-      test: /\.(ogg|mp3|wav|mpe?g)$/i,
+      test: /\.(hdr|ogg|mp3|wav|mpe?g)$/i,
       exclude: config.exclude,
       use: [
         {

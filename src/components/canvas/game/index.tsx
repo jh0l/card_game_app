@@ -31,16 +31,10 @@ export function GameView() {
     <View orbit={!active} className='mx-auto h-full w-full max-w-screen-lg bg-pink-100'>
       <Suspense fallback={null}>
         <Duck position={[0, -0.6, -3]} scale={1} rotation={[0.0, -0.3, 0]} />
-      </Suspense>
-      <Suspense fallback={null}>
         <Dog position={[0, 1, -4]} scale={1} rotation={[0.0, -0.3, 0]} />
-      </Suspense>
-      <Suspense fallback={null}>
         <Hand setActive={setActive} />
       </Suspense>
-      <Suspense fallback={null}>
-        <Common />
-      </Suspense>
+      <Common />
     </View>
   )
 }
