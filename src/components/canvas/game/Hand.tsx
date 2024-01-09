@@ -134,11 +134,11 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
         }
         // distance drag has travelled on x axis
         // setData(x_init + ' ' + size.left)
-        if (abs(x) > 0.1) {
+        if (abs(x) > 0) {
           // find direction of drag, left or right
           // find closest position in POSITIONS
           const x__ = x_
-          let closest = 0
+          let closest = SHARED_STATE.active.closest
           for (let i = 0; i < POSITIONS.length; i++) {
             if (abs(POSITIONS[i].position[0] - x__) < abs(POSITIONS[closest].position[0] - x__)) {
               closest = i
@@ -185,16 +185,16 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
           SELF.current.rotation = rotation
         }, 100)
       }
-    } else if (active !== false) {
+    } else if (active !== false && SHARED_STATE.active) {
       // if card index is < active index,
       // else if card index is > active index, move card to the right
-      const OFFSET = 0.2
-      const offset = index > SELF_STATE[active.i][0].index ? OFFSET : -OFFSET
-      const xOff = POSITIONS[active.POSITIONS[i]].position[0] + offset
-      if (!isSame(SELF.current.position, [xOff, y, z])) {
-        setSpring.start({ position: [xOff, y, z] })
-        SELF.current.position = [xOff, y, z]
-      }
+      const OFFSET = 0.5
+      const offset = SHARED_STATE.active.POSITIONS[i] > SHARED_STATE.active.POSITIONS[active.i] ? OFFSET : -OFFSET
+      const xOff = POSITIONS[SHARED_STATE.active.POSITIONS[i]].position[0] + offset
+      //if (!isSame(SELF.current.position, [xOff, y, z])) {
+      setSpring.start({ position: [xOff, y, z] })
+      SELF.current.position = [xOff, y, z]
+      //}
     } else if (!isSame(SELF.current.rotation, defaultRotation) || !isSame(SELF.current.position, target.position)) {
       SELF.current.rotation = defaultRotation
       SELF.current.position = target.position
