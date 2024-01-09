@@ -7,7 +7,7 @@ import { mapLinear } from '@/utils'
 import * as THREE from 'three'
 
 const MASS = 1.3
-const FRICTION = 66
+const FRICTION = 77
 const CARDS = 7
 const FIELD_LINE = -1.2
 const TEXT = 0.2
@@ -84,15 +84,12 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
 
     POSITIONS[i].position = pos
   }, [i, viewport.width])
-  const [spring, setSpring] = useSpring(
-    () => ({
-      scale: [1, 1, 1] as Vec3,
-      position: zVec,
-      rotation: zVec,
-      config: { mass: MASS, friction: FRICTION, tension: 2000 },
-    }),
-    [zVec],
-  )
+  const [spring, setSpring] = useSpring(() => ({
+    scale: [1, 1, 1] as Vec3,
+    position: zVec,
+    rotation: zVec,
+    config: { mass: MASS, friction: FRICTION, tension: 2000 },
+  }))
   const bind = useDrag(({ offset, movement, event, first, last, delta }) => {
     const SELF = SELF_STATE[i][0]
 
@@ -129,12 +126,12 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
         //
         const state_y = SHARED_STATE.active.offset.y
         const onField = state_y > FIELD_LINE
+        const shuffleMode = !onField && state_y > FIELD_LINE - 0.6
         let x_ = SHARED_STATE.active.offset.x * 0.9
-        //setData([state_y])
+        setData([state_y.toFixed(4)])
         const zoom = onField ? 1 : mapLinear(y, 0, zoomDrag, 1, 2.5)
         let y_ = state_y + 1.75 + zoom * 0.9
         if (onField) {
-          // y_ = y_ * mapLinear(state_y, -1.2, 0, 1, 1.5)
         }
         // console.log(zoom)
         const scale = [zoom, zoom, zoom] as Vec3
@@ -149,8 +146,25 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
           })
           SELF.current.position = position
         }
-        // distance drag has travelled on x axis
-        if (!onField && abs(x) > 2) {
+        if (shuffleMode) {
+          const x__ = SELF.current.position[0]
+          let closest = SHARED_STATE.active.closest
+          for (let i = 0; i < POSITIONS.length; i++) {
+            if (
+              abs(POSITIONS[SHARED_STATE.active.POSITIONS[i]].position[0] - x__) <
+              abs(POSITIONS[closest].position[0] - x__)
+            ) {
+              closest = i
+            }
+          }
+          if (closest != SHARED_STATE.active.closest) {
+            // swap closest with current
+            const temp = SHARED_STATE.active.POSITIONS[closest]
+            SHARED_STATE.active.POSITIONS[closest] = SHARED_STATE.active.POSITIONS[i]
+            SHARED_STATE.active.POSITIONS[i] = temp
+            SHARED_STATE.active.closest = closest
+          }
+        } else if (!onField && abs(x) > 2) {
           // find direction of drag, left or right
           // find closest position in POSITIONS
 
@@ -197,10 +211,10 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
     const { active } = SHARED_STATE
     const [x, y, z] = spring.position.get()
     if (active && active.i === i) {
-      const rotation = [0, -x / 5, 0] as Vec3
+      const rotation = [0, -x / 30, 0] as Vec3
       if (!isSame(SELF.current.rotation, rotation)) {
         setTimeout(() => {
-          setSpring.start({ rotation })
+          setSpring.start({ rotation, config: { friction: 300 } })
           SELF.current.rotation = rotation
         }, 100)
       }
@@ -236,13 +250,6 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
     // <group position={transform}>
     <>
       <a.mesh {...spring} {...bindType} castShadow>
-        {data && (
-          <Html>
-            <div className='pointer-events-none w-20 select-none break-before-all overflow-hidden'>
-              {JSON.stringify(data, null, 2)}
-            </div>
-          </Html>
-        )}
         {/*  for index */}
         <Text
           scale={[TEXT, TEXT, TEXT]}
@@ -254,6 +261,15 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
           position={[-1 / 2.1, 1.5 / 2.1, 0.01]}
         >
           {label}
+        </Text>
+        <Text
+          scale={[TEXT / 2, TEXT / 2, TEXT / 2]}
+          color={isDark ? 'white' : 'black'}
+          anchorX='center'
+          anchorY='bottom-baseline'
+          position={[0, 0.2, 0.01]}
+        >
+          {data}
         </Text>
         <Text
           scale={[TEXT, TEXT, TEXT]}
