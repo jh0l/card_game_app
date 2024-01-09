@@ -2,13 +2,15 @@ import { Vector3, useFrame, useThree } from '@react-three/fiber'
 import { useDrag } from '@use-gesture/react'
 import { useSpring, a } from '@react-spring/three'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Html, useTexture } from '@react-three/drei'
+import { Html, useTexture, Text } from '@react-three/drei'
 import { mapLinear } from '@/utils'
 import * as THREE from 'three'
 
 const MASS = 1.3
 const FRICTION = 66
 const CARDS = 7
+const FIELD_LINE = -1.2
+const TEXT = 0.2
 
 const { abs } = Math
 type PosRot = { position: Vec3; rotation: Vec3 }
@@ -36,14 +38,14 @@ const POSITIONS: PosRot[] = Array.from({ length: CARDS }).map((_, i) => ({
 }))
 
 const defaultRotation = [0, 0.2, 0] as Vec3
-const flippingRotation = [0, 0.75, 0] as Vec3
+const flippingRotation = [0, 1, 0] as Vec3
 
 function isSame(a: Vec3, b: Vec3) {
   return a[0] === b[0] && a[1] === b[1] && a[2] === b[2]
 }
 
 // comic book sticker colors
-const COLORS = [
+const COLORS: { color: string; luma: number }[] = [
   '#4c69f6',
   '#4c94f6',
   '#f6db35',
@@ -54,7 +56,20 @@ const COLORS = [
   '#94d46f',
   '#63cdb0',
   '#1d120d',
-].sort(() => Math.random() - 0.5)
+]
+  .sort(() => Math.random() - 0.5)
+  .map((color) => ({ color, luma: luma(color) }))
+
+function luma(color: string): number {
+  // https://www.w3.org/TR/AERT/#color-contrast
+  const rgb = parseInt(color.slice(1), 16)
+  const red = (rgb >> 16) & 0xff
+  const green = (rgb >> 8) & 0xff
+  const blue = (rgb >> 0) & 0xff
+  // returns the perceptive luminance of a color as a value between 0 and 1
+  const luma = 0.2126 * red + 0.7152 * green + 0.0722 * blue // per ITU-R BT.709
+  return luma / 255
+}
 
 function Card({ i, setActive }: { i: number; setActive: (active: boolean) => void }) {
   const { viewport } = useThree()
@@ -100,6 +115,8 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
         SELF_STATE[i][0].index = SHARED_STATE.active.POSITIONS[i]
       }
       SHARED_STATE.active = false
+      setSpring.start({ rotation: flippingRotation })
+      SELF.current.rotation = flippingRotation
     }
     if (SHARED_STATE.active) {
       // delay the drag to allow raycastboard to update
@@ -111,7 +128,7 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
         // if drag is close enough to the top of the screen, bump the card up so at most above the hand
         //
         const state_y = SHARED_STATE.active.offset.y
-        const onField = state_y > -1.2
+        const onField = state_y > FIELD_LINE
         let x_ = SHARED_STATE.active.offset.x * 0.9
         //setData([state_y])
         const zoom = onField ? 1 : mapLinear(y, 0, zoomDrag, 1, 2.5)
@@ -133,35 +150,31 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
           SELF.current.position = position
         }
         // distance drag has travelled on x axis
-        // setData(x_init + ' ' + size.left)
-        if (abs(x) > 0) {
+        if (!onField && abs(x) > 2) {
           // find direction of drag, left or right
           // find closest position in POSITIONS
-          let go = 0
-          while (go < 2) {
-            go++
-            const x__ = SELF.current.position[0]
-            let closest = SHARED_STATE.active.closest
-            for (let i = 0; i < POSITIONS.length; i++) {
-              if (abs(POSITIONS[i].position[0] - x__) < abs(POSITIONS[closest].position[0] - x__)) {
-                closest = i
-              }
+
+          const x__ = SELF.current.position[0]
+          let closest = SHARED_STATE.active.closest
+          for (let i = 0; i < POSITIONS.length; i++) {
+            if (abs(POSITIONS[i].position[0] - x__) < abs(POSITIONS[closest].position[0] - x__)) {
+              closest = i
             }
-            // setData([
-            //   closest,
-            //   x__,
-            //   abs(POSITIONS[closest - 1]?.position[0] - x__),
-            //   SELF.current.position[0],
-            //   abs(POSITIONS[closest + 1]?.position[0] - x__),
-            // ])
-            if (closest != SHARED_STATE.active.closest) {
-              // shuffle all cards left or right as card being drags moves to closest position in POSITION
-              const dir = closest < SHARED_STATE.active.closest ? -1 : 1
-              SHARED_STATE.active.closest = closest
-              // set new positions of all cards in active.POSITIONS
-              for (let i = 0; i < SELF_STATE.length; i++) {
-                SHARED_STATE.active.POSITIONS[i] = (SHARED_STATE.active.POSITIONS[i] + dir + CARDS) % CARDS
-              }
+          }
+          // setData([
+          //   closest,
+          //   x__,
+          //   abs(POSITIONS[closest - 1]?.position[0] - x__),
+          //   SELF.current.position[0],
+          //   abs(POSITIONS[closest + 1]?.position[0] - x__),
+          // ])
+          if (closest != SHARED_STATE.active.closest) {
+            // shift all cards left or right as card being dragged moves to closest position in POSITION
+            const dir = closest < SHARED_STATE.active.closest ? -1 : 1
+            SHARED_STATE.active.closest = closest
+            // set new positions of all cards in active.POSITIONS
+            for (let i = 0; i < SELF_STATE.length; i++) {
+              SHARED_STATE.active.POSITIONS[i] = (SHARED_STATE.active.POSITIONS[i] + dir + CARDS) % CARDS
             }
           }
         }
@@ -172,11 +185,6 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
         update()
         SHARED_STATE.active.first = undefined
       }
-    } else {
-      setSpring.start({
-        rotation: flippingRotation,
-      })
-      SELF.current.rotation = flippingRotation
     }
   })
 
@@ -199,7 +207,7 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
     } else if (active !== false && SHARED_STATE.active) {
       // if card index is < active index,
       // else if card index is > active index, move card to the right
-      const OFFSET = 0.5
+      const OFFSET = FIELD_LINE > SHARED_STATE.active.offset.y ? 0.5 : 0
       const offset = SHARED_STATE.active.POSITIONS[i] > SHARED_STATE.active.POSITIONS[active.i] ? OFFSET : -OFFSET
       const xOff = POSITIONS[SHARED_STATE.active.POSITIONS[i]].position[0] + offset
       //if (!isSame(SELF.current.position, [xOff, y, z])) {
@@ -219,7 +227,9 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
       })
     }
   })
-
+  const { color, luma } = COLORS[i]
+  const isDark = luma < 0.2
+  const label = i + 1
   // @ts-ignore
   const bindType = bind()
   return (
@@ -233,9 +243,43 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
             </div>
           </Html>
         )}
+        {/*  for index */}
+        <Text
+          scale={[TEXT, TEXT, TEXT]}
+          color={isDark ? 'white' : 'black'}
+          outlineWidth={0.005}
+          outlineColor={isDark ? 'white' : 'black'}
+          anchorX='left'
+          anchorY='top'
+          position={[-1 / 2.1, 1.5 / 2.1, 0.01]}
+        >
+          {label}
+        </Text>
+        <Text
+          scale={[TEXT, TEXT, TEXT]}
+          color={isDark ? 'white' : 'black'}
+          outlineWidth={0.005}
+          outlineColor={!isDark ? 'white' : 'black'}
+          anchorX='right'
+          anchorY='bottom-baseline'
+          position={[-1 / -2.1, 1.5 / -2.1, 0.01]}
+        >
+          {label}
+        </Text>
+        <Text
+          scale={[TEXT / 2, TEXT / 2, TEXT / 2]}
+          color={isDark ? 'white' : 'black'}
+          outlineWidth={0.005}
+          outlineColor={!isDark ? 'white' : 'black'}
+          anchorX='center'
+          anchorY='top-baseline'
+          position={[0, 0, 0.01]}
+        >
+          {Array(label).fill('Lorem Ipsum').join('\n')}
+        </Text>
         <boxGeometry args={[1, 1.5, 0.01]} />
         <meshPhysicalMaterial
-          color={COLORS[i]}
+          color={color}
           // shiny
         />
       </a.mesh>
