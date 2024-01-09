@@ -90,7 +90,7 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
     rotation: zVec,
     config: { mass: MASS, friction: FRICTION, tension: 2000 },
   }))
-  const bind = useDrag(({ offset, movement, event, first, last, delta }) => {
+  const bind = useDrag(({ movement, event, first, last }) => {
     const SELF = SELF_STATE[i][0]
 
     event.stopPropagation()
@@ -126,7 +126,6 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
         //
         const state_y = SHARED_STATE.active.offset.y
         const onField = state_y > FIELD_LINE
-        const shuffleMode = !onField && state_y > FIELD_LINE - 0.6
         let x_ = SHARED_STATE.active.offset.x * 0.9
         setData([state_y.toFixed(4)])
         const zoom = onField ? 1 : mapLinear(y, 0, zoomDrag, 1, 2.5)
@@ -146,8 +145,8 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
           })
           SELF.current.position = position
         }
-        if (shuffleMode) {
-          const x__ = SELF.current.position[0]
+        if (onField) {
+          const x__ = x_
           let closest = SHARED_STATE.active.closest
           for (let i = 0; i < POSITIONS.length; i++) {
             if (
