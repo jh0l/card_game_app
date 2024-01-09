@@ -137,20 +137,31 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
         if (abs(x) > 0) {
           // find direction of drag, left or right
           // find closest position in POSITIONS
-          const x__ = x_
-          let closest = SHARED_STATE.active.closest
-          for (let i = 0; i < POSITIONS.length; i++) {
-            if (abs(POSITIONS[i].position[0] - x__) < abs(POSITIONS[closest].position[0] - x__)) {
-              closest = i
+          let go = 0
+          while (go < 2) {
+            go++
+            const x__ = SELF.current.position[0]
+            let closest = SHARED_STATE.active.closest
+            for (let i = 0; i < POSITIONS.length; i++) {
+              if (abs(POSITIONS[i].position[0] - x__) < abs(POSITIONS[closest].position[0] - x__)) {
+                closest = i
+              }
             }
-          }
-          if (closest != SHARED_STATE.active.closest) {
-            SHARED_STATE.active.closest = closest
-            // shuffle all cards left or right as card being drags moves to closest position in POSITION
-            const dir = delta[0] > 0 ? 1 : -1
-            // set new positions of all cards in active.POSITIONS
-            for (let i = 0; i < SELF_STATE.length; i++) {
-              SHARED_STATE.active.POSITIONS[i] = (SHARED_STATE.active.POSITIONS[i] + dir + CARDS) % CARDS
+            // setData([
+            //   closest,
+            //   x__,
+            //   abs(POSITIONS[closest - 1]?.position[0] - x__),
+            //   SELF.current.position[0],
+            //   abs(POSITIONS[closest + 1]?.position[0] - x__),
+            // ])
+            if (closest != SHARED_STATE.active.closest) {
+              // shuffle all cards left or right as card being drags moves to closest position in POSITION
+              const dir = closest < SHARED_STATE.active.closest ? -1 : 1
+              SHARED_STATE.active.closest = closest
+              // set new positions of all cards in active.POSITIONS
+              for (let i = 0; i < SELF_STATE.length; i++) {
+                SHARED_STATE.active.POSITIONS[i] = (SHARED_STATE.active.POSITIONS[i] + dir + CARDS) % CARDS
+              }
             }
           }
         }
