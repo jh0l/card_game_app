@@ -1,6 +1,7 @@
 'use client'
 
 import { GameView } from '@/components/canvas/game'
+import { RecoilRoot } from 'recoil'
 
 export default function Page() {
   return (

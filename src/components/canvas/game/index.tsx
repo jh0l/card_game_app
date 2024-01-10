@@ -28,13 +28,13 @@ import Hand from '@/components/canvas/game/Hand'
 export function GameView() {
   const [active, setActive] = useState(false)
   return (
-    <View orbit={!active} className='mx-auto h-full w-full max-w-screen-lg bg-pink-100'>
+    <View orbit={!active} className='mx-auto h-full w-full max-w-screen-lg bg-white opacity-[0.14]'>
+      <Common />
       <Suspense fallback={null}>
-        <Duck position={[0, -0.6, -3]} scale={1} rotation={[0.0, -0.3, 0]} />
+        <Duck position={[1.5, -0.6, -3]} scale={1} rotation={[0.0, -0.3, 0]} />
         <Dog position={[0, 1, -4]} scale={1} rotation={[0.0, -0.3, 0]} />
         <Hand setActive={setActive} />
       </Suspense>
-      <Common />
     </View>
   )
 }

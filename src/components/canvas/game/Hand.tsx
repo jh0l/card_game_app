@@ -5,10 +5,12 @@ import { useEffect, useRef, useState } from 'react'
 import { useTexture, Text } from '@react-three/drei'
 import { mapLinear } from '@/utils'
 import * as THREE from 'three'
+import { atomFamily, useRecoilValue, useSetRecoilState } from 'recoil'
 
 const MASS = 1.3
 const FRICTION = 77
 const CARDS = 7
+const CARD_THICK = 0.1
 const FIELD_LINE = -1.2
 const TEXT = 0.2
 
@@ -68,16 +70,39 @@ function luma(color: string): number {
   return luma / 255
 }
 
+const liveDataAtom = atomFamily<string | null, number>({
+  key: 'liveData',
+  default: null,
+})
+
+function LiveText({ index }: { index: number }) {
+  const data = useRecoilValue(liveDataAtom(index))
+  const isDark = true
+  return (
+    <Text
+      font='Rubik-Regular.ttf'
+      scale={[TEXT / 2, TEXT / 2, TEXT / 2]}
+      color={isDark ? 'white' : 'black'}
+      anchorX='left'
+      anchorY='bottom-baseline'
+      position={[-0.45, -0.2, CARD_THICK / 1.9]}
+    >
+      {data}
+    </Text>
+  )
+}
+
 function Card({ i, setActive }: { i: number; setActive: (active: boolean) => void }) {
+  const texture = useTexture(`img/cards/melty-boy0-q25.png`)
   const { viewport } = useThree()
-  const [data, setData] = useState<any>(false)
+  const setData = useSetRecoilState(liveDataAtom(i))
   useEffect(() => {
     // determines the position of the card based on its index, the number of cards and the width of the viewport
     // the card is positioned in a stack evenly spread from left of screeen to right of the viewport
     const increment = Math.min(viewport.width / CARDS, 1)
     const x = (i - (CARDS - 1) / 2) * increment
     const z = -2.9
-    const pos = [x, 0, z] as Vec3
+    const pos = [x, 0, z + CARD_THICK * i] as Vec3
 
     POSITIONS[i].position = pos
   }, [i, viewport.width])
@@ -126,9 +151,6 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
           setSpring.start({
             position,
             scale,
-            config: {
-              friction: onField ? FRICTION : 456,
-            },
           })
           SELF.current.position = position
         }
@@ -162,7 +184,6 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
           )
           const targetCard = CARD_STATE.find((x) => x.positionsIndex === closestIndex)
           const dist = abs(SELF.positionsIndex - targetCard?.positionsIndex)
-          console.log(dist)
           if (dist === 1) {
             const temp = SELF.positionsIndex
             SELF.positionsIndex = closestIndex
@@ -200,8 +221,8 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
       })
     }
   })
-  const { color, luma } = COLORS[i]
-  const isDark = luma < 0.2
+  // const { color, luma } = COLORS[i]
+  const isDark = true //luma < 0.2
   const label = i + 1
   // @ts-ignore
   const bindType = bind()
@@ -209,54 +230,46 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
     // <group position={transform}>
     <>
       <a.mesh {...spring} {...bindType} castShadow>
-        {/*  for index */}
+        <boxGeometry args={[1, 1.5, CARD_THICK]} />
+        <meshBasicMaterial opacity={0} transparent attach='material-0' />
+        <meshBasicMaterial opacity={0} transparent attach='material-1' />
+        <meshBasicMaterial opacity={0} transparent attach='material-2' />
+        <meshBasicMaterial opacity={0} transparent attach='material-3' />
+        <meshBasicMaterial opacity={0} transparent attach='material-5' />
+        <meshStandardMaterial attach='material-4' map={texture} bumpMap={texture} transparent />
         <Text
+          font='Rubik-Regular.ttf'
           scale={[TEXT, TEXT, TEXT]}
           color={isDark ? 'white' : 'black'}
-          outlineWidth={0.005}
-          outlineColor={isDark ? 'white' : 'black'}
           anchorX='left'
           anchorY='top'
-          position={[-1 / 2.1, 1.5 / 2.1, 0.01]}
+          position={[-1 / 2.2, 1.5 / 2.2, CARD_THICK / 1.9]}
         >
           {label}
         </Text>
+        <LiveText index={i} />
         <Text
-          scale={[TEXT / 2, TEXT / 2, TEXT / 2]}
-          color={isDark ? 'white' : 'black'}
-          anchorX='center'
-          anchorY='bottom-baseline'
-          position={[0, 0.2, 0.01]}
-        >
-          {data}
-        </Text>
-        <Text
+          font='Rubik-Regular.ttf'
           scale={[TEXT, TEXT, TEXT]}
           color={isDark ? 'white' : 'black'}
-          outlineWidth={0.005}
-          outlineColor={!isDark ? 'white' : 'black'}
           anchorX='right'
           anchorY='bottom-baseline'
-          position={[-1 / -2.1, 1.5 / -2.1, 0.01]}
+          position={[-1 / -2.2, 1.5 / -2.2, CARD_THICK / 1.9]}
         >
           {label}
         </Text>
         <Text
-          scale={[TEXT / 2, TEXT / 2, TEXT / 2]}
+          font='Rubik-Regular.ttf'
+          scale={[TEXT / 3.2, TEXT / 3.2, TEXT / 3.2]}
           color={isDark ? 'white' : 'black'}
           outlineWidth={0.005}
           outlineColor={!isDark ? 'white' : 'black'}
           anchorX='center'
           anchorY='top-baseline'
-          position={[0, 0, 0.01]}
+          position={[0, -0.28, CARD_THICK / 1.9]}
         >
-          {Array(label).fill('Lorem Ipsum').join('\n')}
+          {Array(label).fill('Lorem Ipsum Lorem Ipsum').join('\n')}
         </Text>
-        <boxGeometry args={[1, 1.5, 0.01]} />
-        <meshPhysicalMaterial
-          color={color}
-          // shiny
-        />
       </a.mesh>
     </>
     // </group>
@@ -264,9 +277,9 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
 }
 
 export default function Hand({ setActive }: { setActive: (active: boolean) => void }) {
-  const { raycaster, viewport, camera } = useThree()
+  const { raycaster, viewport } = useThree()
 
-  const planeTexture = useTexture('./uv_grid.jpg')
+  // const planeTexture = useTexture('./uv_grid.jpg')
   const [transforms] = useState(
     Array.from({ length: CARDS }, () => ({
       key: Math.random(),
@@ -280,6 +293,8 @@ export default function Hand({ setActive }: { setActive: (active: boolean) => vo
       // raycaster.setFromCamera(vec, camera)
       const intersect = raycaster.intersectObject(raycastBoard.current)[0]
       if (!intersect) return
+      // if intersect point is too close to the intersect.object.position, then ignore
+      if (intersect.point.distanceTo(intersect.object.position) < 0.1) return
       // convert intersect point from local space to world space
       SELECTED_CARD_STATE.active.offset = intersect.point
       SELECTED_CARD_STATE.active.first?.()
@@ -295,7 +310,8 @@ export default function Hand({ setActive }: { setActive: (active: boolean) => vo
         <mesh ref={raycastBoard} position={[0, viewport.height / 3, -3]}>
           <planeGeometry args={[viewport.width * 2, viewport.height * 2, 1, 1]} />
           {/* transparent material */}
-          <meshBasicMaterial map={planeTexture} color='blue' opacity={0.5} transparent />
+          {/* <meshBasicMaterial map={planeTexture} color='blue' opacity={0.5} transparent /> */}
+          <meshBasicMaterial opacity={0} transparent />
         </mesh>
       </group>
     </>
