@@ -1,8 +1,8 @@
-import { Vector3, useFrame, useThree } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import { useDrag } from '@use-gesture/react'
 import { useSpring, a } from '@react-spring/three'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Html, useTexture, Text } from '@react-three/drei'
+import { useEffect, useRef, useState } from 'react'
+import { useTexture, Text } from '@react-three/drei'
 import { mapLinear } from '@/utils'
 import * as THREE from 'three'
 
@@ -14,23 +14,20 @@ const TEXT = 0.2
 
 const { abs } = Math
 type PosRot = { position: Vec3; rotation: Vec3 }
+type Vec2 = [x: number, y: number]
 type Vec3 = [x: number, y: number, z: number, order?: THREE.EulerOrder]
 const zVec: Vec3 = [0, 0, 0] as const
 const zPositions: PosRot = { position: zVec, rotation: zVec }
 const zVector3 = new THREE.Vector3(0, 0, 0)
 type FastSharedState = {
-  active:
-    | { x: number; i: number; offset: THREE.Vector3; first?: () => void; POSITIONS: number[]; closest: number }
-    | false
+  active: { vector: Vec2; cardIndex: number; offset: THREE.Vector3; first?: () => void; closest: number } | false
 }
-const SHARED_STATE: FastSharedState = { active: false }
-type FastSelfState = [{ index: number; current: PosRot }][]
-const SELF_STATE: FastSelfState = Array.from({ length: CARDS }).map((_, i) => [
-  {
-    current: { position: zVec, rotation: zVec },
-    index: i,
-  },
-])
+const SELECTED_CARD_STATE: FastSharedState = { active: false }
+type FastSelfState = { positionsIndex: number; current: PosRot }[]
+const CARD_STATE: FastSelfState = Array.from({ length: CARDS }).map((_, i) => ({
+  current: { position: zVec, rotation: zVec },
+  positionsIndex: i,
+}))
 
 const POSITIONS: PosRot[] = Array.from({ length: CARDS }).map((_, i) => ({
   position: zVec,
@@ -91,48 +88,38 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
     config: { mass: MASS, friction: FRICTION, tension: 2000 },
   }))
   const bind = useDrag(({ movement, event, first, last }) => {
-    const SELF = SELF_STATE[i][0]
-
+    const SELF = CARD_STATE[i]
+    // get card's current position
     event.stopPropagation()
     if (first) {
       setActive(true)
-      SHARED_STATE.active = {
-        x: movement[0],
-        i,
+      SELECTED_CARD_STATE.active = {
+        vector: movement,
+        cardIndex: i,
         offset: zVector3,
-        POSITIONS: SELF_STATE.map(([{ index }]) => index),
-        closest: SELF_STATE[i][0].index,
+        closest: CARD_STATE[i].positionsIndex,
       }
       setSpring.start({ rotation: flippingRotation })
       SELF.current.rotation = flippingRotation
     }
-    if (last && SHARED_STATE.active) {
+    if (last && SELECTED_CARD_STATE.active) {
       setActive(false)
-      for (let i = 0; i < SELF_STATE.length; i++) {
-        SELF_STATE[i][0].index = SHARED_STATE.active.POSITIONS[i]
-      }
-      SHARED_STATE.active = false
+      SELECTED_CARD_STATE.active = false
       setSpring.start({ rotation: flippingRotation })
       SELF.current.rotation = flippingRotation
     }
-    if (SHARED_STATE.active) {
+    if (SELECTED_CARD_STATE.active) {
       // delay the drag to allow raycastboard to update
       const update = () => {
-        const [x, y] = movement
-        const zoomDrag = -75
-        if (!SHARED_STATE.active) return
+        if (!SELECTED_CARD_STATE.active) return
 
-        // if drag is close enough to the top of the screen, bump the card up so at most above the hand
-        //
-        const state_y = SHARED_STATE.active.offset.y
+        const state_y = SELECTED_CARD_STATE.active.offset.y
         const onField = state_y > FIELD_LINE
-        let x_ = SHARED_STATE.active.offset.x * 0.9
-        setData([state_y.toFixed(4)])
-        const zoom = onField ? 1 : mapLinear(y, 0, zoomDrag, 1, 2.5)
+        let x_ = SELECTED_CARD_STATE.active.offset.x * 0.9
+        setData(spring.position.get()[1].toFixed(2))
+        const zoom = onField ? 1 : mapLinear(state_y, -1.7, FIELD_LINE - 0.2, 1, 2)
         let y_ = state_y + 1.75 + zoom * 0.9
-        if (onField) {
-        }
-        // console.log(zoom)
+
         const scale = [zoom, zoom, zoom] as Vec3
         const position = [x_, y_, onField ? -2.6 : -2] as Vec3
         if (!isSame(SELF.current.position, position)) {
@@ -145,71 +132,44 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
           })
           SELF.current.position = position
         }
-        if (onField) {
-          const x__ = x_
-          let closest = SHARED_STATE.active.closest
-          for (let i = 0; i < POSITIONS.length; i++) {
-            if (
-              abs(POSITIONS[SHARED_STATE.active.POSITIONS[i]].position[0] - x__) <
-              abs(POSITIONS[closest].position[0] - x__)
-            ) {
-              closest = i
-            }
-          }
-          if (closest != SHARED_STATE.active.closest) {
-            // swap closest with current
-            const temp = SHARED_STATE.active.POSITIONS[closest]
-            SHARED_STATE.active.POSITIONS[closest] = SHARED_STATE.active.POSITIONS[i]
-            SHARED_STATE.active.POSITIONS[i] = temp
-            SHARED_STATE.active.closest = closest
-          }
-        } else if (!onField && abs(x) > 2) {
-          // find direction of drag, left or right
-          // find closest position in POSITIONS
-
-          const x__ = SELF.current.position[0]
-          let closest = SHARED_STATE.active.closest
-          for (let i = 0; i < POSITIONS.length; i++) {
-            if (abs(POSITIONS[i].position[0] - x__) < abs(POSITIONS[closest].position[0] - x__)) {
-              closest = i
-            }
-          }
-          // setData([
-          //   closest,
-          //   x__,
-          //   abs(POSITIONS[closest - 1]?.position[0] - x__),
-          //   SELF.current.position[0],
-          //   abs(POSITIONS[closest + 1]?.position[0] - x__),
-          // ])
-          if (closest != SHARED_STATE.active.closest) {
-            // shift all cards left or right as card being dragged moves to closest position in POSITION
-            const dir = closest < SHARED_STATE.active.closest ? -1 : 1
-            SHARED_STATE.active.closest = closest
-            // set new positions of all cards in active.POSITIONS
-            for (let i = 0; i < SELF_STATE.length; i++) {
-              SHARED_STATE.active.POSITIONS[i] = (SHARED_STATE.active.POSITIONS[i] + dir + CARDS) % CARDS
-            }
-          }
-        }
       }
       if (first) {
-        SHARED_STATE.active.first = update
+        SELECTED_CARD_STATE.active.first = update
       } else {
         update()
-        SHARED_STATE.active.first = undefined
+        SELECTED_CARD_STATE.active.first = undefined
       }
     }
   })
 
   // the card is rotated to face the center of the circle of cards
   useFrame(() => {
-    const SELF = SELF_STATE[i][0]
-
-    const { index } = SELF
-    const target = POSITIONS[index] || zPositions
-    const { active } = SHARED_STATE
+    const SELF = CARD_STATE[i]
+    const target = POSITIONS[SELF.positionsIndex] || zPositions
+    const { active } = SELECTED_CARD_STATE
     const [x, y, z] = spring.position.get()
-    if (active && active.i === i) {
+    if (active && active.cardIndex === i) {
+      const spring_position = spring.position.get()
+      if (active.offset.y < FIELD_LINE) {
+        const spring_x = spring_position[0]
+        // if spring_x is far enough away from POSITIONS[SELF.positionsIndex] then swap the cards index with the closest card
+        const increment = Math.min(viewport.width / CARDS, 1) / 2
+        if (abs(spring_x - (target.position[0] - increment)) > increment) {
+          // for POSITIONS, find the position closest to spring_x, and swap that card's index with the current cards index
+          const range = POSITIONS.map((x, i) => [x.position[0], i])
+          const [, closestIndex] = range.reduce((prev, curr) =>
+            abs(curr[0] - spring_x) < abs(prev[0] - spring_x) ? curr : prev,
+          )
+          const targetCard = CARD_STATE.find((x) => x.positionsIndex === closestIndex)
+          const dist = abs(SELF.positionsIndex - targetCard?.positionsIndex)
+          console.log(dist)
+          if (dist === 1) {
+            const temp = SELF.positionsIndex
+            SELF.positionsIndex = closestIndex
+            targetCard.positionsIndex = temp
+          }
+        }
+      }
       const rotation = [0, -x / 30, 0] as Vec3
       if (!isSame(SELF.current.rotation, rotation)) {
         setTimeout(() => {
@@ -217,16 +177,16 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
           SELF.current.rotation = rotation
         }, 100)
       }
-    } else if (active !== false && SHARED_STATE.active) {
+    } else if (active !== false) {
       // if card index is < active index,
       // else if card index is > active index, move card to the right
-      const OFFSET = FIELD_LINE > SHARED_STATE.active.offset.y ? 0.5 : 0
-      const offset = SHARED_STATE.active.POSITIONS[i] > SHARED_STATE.active.POSITIONS[active.i] ? OFFSET : -OFFSET
-      const xOff = POSITIONS[SHARED_STATE.active.POSITIONS[i]].position[0] + offset
-      //if (!isSame(SELF.current.position, [xOff, y, z])) {
-      setSpring.start({ position: [xOff, y, z] })
-      SELF.current.position = [xOff, y, z]
-      //}
+      const OFFSET = 0.5
+      const offset = SELF.positionsIndex > CARD_STATE[active.cardIndex].positionsIndex ? OFFSET : -OFFSET
+      const xOff = target.position[0] + offset
+      if (!isSame(SELF.current.position, [xOff, y, z])) {
+        setSpring.start({ position: [xOff, y, z] })
+        SELF.current.position = [xOff, y, z]
+      }
     } else if (!isSame(SELF.current.rotation, defaultRotation) || !isSame(SELF.current.position, target.position)) {
       SELF.current.rotation = defaultRotation
       SELF.current.position = target.position
@@ -315,14 +275,14 @@ export default function Hand({ setActive }: { setActive: (active: boolean) => vo
   // plane for raycasting intersection with cursor in 3d scene, should not have touch events
   const raycastBoard = useRef<THREE.Mesh>(null)
   useFrame(() => {
-    if (SHARED_STATE.active && raycastBoard.current) {
+    if (SELECTED_CARD_STATE.active && raycastBoard.current) {
       // const vec = new THREE.Vector2(mouse.x, mouse.y)
       // raycaster.setFromCamera(vec, camera)
       const intersect = raycaster.intersectObject(raycastBoard.current)[0]
       if (!intersect) return
       // convert intersect point from local space to world space
-      SHARED_STATE.active.offset = intersect.point
-      SHARED_STATE.active.first?.()
+      SELECTED_CARD_STATE.active.offset = intersect.point
+      SELECTED_CARD_STATE.active.first?.()
     }
   })
   return (
