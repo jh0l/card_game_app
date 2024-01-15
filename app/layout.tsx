@@ -1,5 +1,6 @@
-import { Layout } from '@/components/dom/Layout'
-import '@/global.css'
+import { Layout } from '@/src/components/dom/Layout'
+import '@/app/theme.css'
+import '@/app/global.css'
 
 export const metadata = {
   title: 'Card Game Gestures',

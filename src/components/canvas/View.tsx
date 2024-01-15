@@ -9,13 +9,9 @@ import {
   useImperativeHandle,
   useRef,
 } from 'react'
-import { Environment, OrbitControls, PerspectiveCamera, View as ViewImpl } from '@react-three/drei'
-import { Three } from '@/helpers/components/Three'
-
-function LocalEnvironment() {
-  // const forest = useLoader(THREE.TextureLoader, './forest_slope_1k.hdr')
-  return <Environment preset='forest' />
-}
+import { OrbitControls, PerspectiveCamera, View as ViewImpl } from '@react-three/drei'
+import { Three } from '@/src/helpers/components/Three'
+import { LocalEnvironment } from './LocalEnvironment'
 
 export const Common = ({ color }: { color?: string }) => (
   <Suspense fallback={null}>

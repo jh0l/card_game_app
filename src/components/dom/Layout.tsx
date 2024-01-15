@@ -3,38 +3,46 @@
 import { useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { RecoilRoot } from 'recoil'
-const Scene = dynamic(() => import('@/components/canvas/Scene'), { ssr: false })
+import { SessionProvider } from 'next-auth/react'
+import NavBar from '@/src/components/NavBar'
+
+const Scene = dynamic(() => import('@/src/components/canvas/Scene'), { ssr: false })
 
 const Layout = ({ children }) => {
   const ref = useRef()
 
   return (
-    <RecoilRoot>
-      <div
-        ref={ref}
-        style={{
-          position: 'relative',
-          width: ' 100%',
-          height: '100%',
-          overflow: 'auto',
-          touchAction: 'auto',
-        }}
-      >
-        {children}
-        <Scene
+    <SessionProvider>
+      <RecoilRoot>
+        <div
+          ref={ref}
           style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            pointerEvents: 'none',
+            position: 'relative',
+            width: ' 100%',
+            height: '100%',
+            overflow: 'auto',
+            touchAction: 'auto',
           }}
-          eventSource={ref}
-          eventPrefix='client'
-        />
-      </div>
-    </RecoilRoot>
+        >
+          {children}
+          <Scene
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              pointerEvents: 'none',
+            }}
+            eventSource={ref}
+            eventPrefix='client'
+          />
+        </div>
+        <div className='fixed left-0 top-0 z-10 '>
+          <NavBar />
+        </div>
+      </RecoilRoot>
+    </SessionProvider>
   )
 }
 

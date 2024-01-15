@@ -3,7 +3,7 @@ import { useDrag } from '@use-gesture/react'
 import { useSpring, a } from '@react-spring/three'
 import { useEffect, useRef, useState } from 'react'
 import { useTexture, Text } from '@react-three/drei'
-import { mapLinear } from '@/utils'
+import { mapLinear } from '@/src/lib/utils2'
 import * as THREE from 'three'
 import { atomFamily, useRecoilValue, useSetRecoilState } from 'recoil'
 
@@ -141,18 +141,26 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
         const state_y = SELECTED_CARD_STATE.active.offset.y
         const onField = state_y > FIELD_LINE
         let x_ = SELECTED_CARD_STATE.active.offset.x * 0.9
-        setData(spring.position.get()[1].toFixed(2))
-        const zoom = onField ? 1 : mapLinear(state_y, -1.7, FIELD_LINE - 0.2, 1, 2)
-        let y_ = state_y + 1.75 + zoom * 0.9
+        const pos = spring.position.get()
+        // sometimes the card will get stuck at 0,0,0 - ignore this
+        const isZeroBug = pos[1].toFixed(2) === '0.00' && state_y.toFixed(2) === '0.00'
+        setData(`${pos[1].toFixed(2)}\n${state_y.toFixed(2)}`)
+        const zoom = onField ? 1 : mapLinear(state_y, -2.7, FIELD_LINE - 0.2, 1, 2)
+        let y_ = state_y + 1.75 + zoom * 0.9 + (onField ? 0.4 : 0)
 
         const scale = [zoom, zoom, zoom] as Vec3
         const position = [x_, y_, onField ? -2.6 : -2] as Vec3
-        if (!isSame(SELF.current.position, position)) {
+        if (!isSame(SELF.current.position, position) && !isZeroBug) {
           setSpring.start({
             position,
-            scale,
           })
           SELF.current.position = position
+          setSpring({
+            scale,
+            config: {
+              friction: FRICTION * 4,
+            },
+          })
         }
       }
       if (first) {
@@ -201,7 +209,9 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
     } else if (active !== false) {
       // if card index is < active index,
       // else if card index is > active index, move card to the right
-      const OFFSET = 0.5
+      const state_y = active.offset.y
+      const onField = state_y > FIELD_LINE
+      const OFFSET = onField ? 0 : 0.4
       const offset = SELF.positionsIndex > CARD_STATE[active.cardIndex].positionsIndex ? OFFSET : -OFFSET
       const xOff = target.position[0] + offset
       if (!isSame(SELF.current.position, [xOff, y, z])) {
