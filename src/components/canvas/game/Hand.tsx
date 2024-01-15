@@ -3,7 +3,7 @@ import { useDrag } from '@use-gesture/react'
 import { useSpring, a } from '@react-spring/three'
 import { useEffect, useRef, useState } from 'react'
 import { useTexture, Text } from '@react-three/drei'
-import { mapLinear } from '@/src/lib/utils2'
+import { mapLinear } from '@/src/lib/utils'
 import * as THREE from 'three'
 import { atomFamily, useRecoilValue, useSetRecoilState } from 'recoil'
 
