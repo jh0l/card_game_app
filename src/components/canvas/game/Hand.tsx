@@ -202,7 +202,7 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
     const [x, y, z] = spring.position.get()
     if (active && active.cardIndex === i) {
       const spring_position = spring.position.get()
-      if (active.offset.y < FIELD_LINE) {
+      if (active.offset.y < FIELD_LINE - 1.5) {
         const spring_x = spring_position[0]
         // if spring_x is far enough away from POSITIONS[SELF.positionsIndex] then swap the cards index with the closest card
         const increment = Math.min(viewport.width / MAX_VISIBLE_CARDS, 1) / 2
