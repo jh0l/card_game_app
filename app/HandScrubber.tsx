@@ -59,7 +59,7 @@ export function HandScrubber() {
     x: 0,
     width: 0,
     opacity: 0,
-    config: { mass: 0.5, friction: 10, tension: 5000 },
+    config: { mass: 1.3, friction: 77, tension: 2000, bounce: 1, clamp: true },
   }))
   const bind = useDrag(
     ({ xy: [xE], ...params }) => {
