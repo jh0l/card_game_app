@@ -12,6 +12,7 @@ const cardsList = atom<string[]>({
 })
 
 export const useCardsListValue = () => useRecoilValue(cardsList)
+export const useSetCardsList = () => useSetRecoilState(cardsList)
 
 const cardRangeAtom = atom<number[]>({
   key: 'cardRange',

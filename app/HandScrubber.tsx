@@ -59,7 +59,7 @@ export function HandScrubber() {
     x: 0,
     width: 0,
     opacity: 0,
-    config: { mass: 1.3, friction: 77, tension: 2000, bounce: 1, clamp: true },
+    config: { mass: 1.3, friction: 77, tension: 2000, clamp: true },
   }))
   const bind = useDrag(
     ({ xy: [xE], ...params }) => {
@@ -72,11 +72,10 @@ export function HandScrubber() {
       const cardWidth = bounds.cardWidth
       const left = bounds.left
       x = Math.round((x - left) / cardWidth) * cardWidth + left
-      // calculate the card range
       const start = Math.round((x - left) / cardWidth)
       const end = Math.round((x + width - left) / cardWidth)
       setCardRange([start, end])
-      setSpring.start({ x })
+      setSpring.start({ x, config: { velocity: params.velocity } })
     },
     { axis: 'x' },
   )

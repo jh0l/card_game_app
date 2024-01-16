@@ -6,7 +6,7 @@ import { useTexture, Text } from '@react-three/drei'
 import { mapLinear } from '@/src/lib/utils'
 import * as THREE from 'three'
 import { atomFamily, useRecoilValue, useSetRecoilState } from 'recoil'
-import { useCardRangeValue, useCardsListValue } from '@/src/state/cards'
+import { useCardRangeValue, useCardsListValue, useSetCardsList } from '@/src/state/cards'
 
 const MASS = 1.3
 const FRICTION = 77
@@ -94,8 +94,10 @@ function LiveText({ index }: { index: string }) {
 }
 
 function Card({ i, identity, setActive }: { i: number; identity: string; setActive: (active: boolean) => void }) {
+  const cardRange = useCardRangeValue()
   const texture = useTexture(`img/cards/melty-boy0-q25.png`)
   const { viewport } = useThree()
+  const setCardList = useSetCardsList()
   const setData = useSetRecoilState(liveDataAtom(identity))
   const [spring, setSpring] = useSpring(() => ({
     scale: [0, 0, 0] as Vec3,
@@ -135,6 +137,21 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
       SELECTED_CARD_STATE.active = false
       setSpring.start({ rotation: flippingRotation })
       SELF.current.rotation = flippingRotation
+      setCardList((list) => {
+        // apply the new card order in CARD_STATE to the cardsList
+        const newList = [...list]
+        const visible = newList.slice(cardRange[0], cardRange[1])
+        CARD_STATE.forEach((x, i) => {
+          const newIndex = x.positionsIndex + cardRange[0]
+          newList[newIndex] = visible[i]
+        })
+        return newList
+      })
+      CARD_STATE.forEach((x, i) => {
+        x.positionsIndex = i
+        POSITIONS[i].position = x.current.position
+        POSITIONS[i].rotation = x.current.rotation
+      })
     }
     if (SELECTED_CARD_STATE.active) {
       // delay the drag to allow raycastboard to update
