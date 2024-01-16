@@ -1,18 +1,20 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useDrag } from '@use-gesture/react'
 import { useSpring, a } from '@react-spring/three'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTexture, Text } from '@react-three/drei'
 import { mapLinear } from '@/src/lib/utils'
 import * as THREE from 'three'
 import { atomFamily, useRecoilValue, useSetRecoilState } from 'recoil'
+import { useCardRangeValue, useCardsListValue } from '@/src/state/cards'
 
 const MASS = 1.3
 const FRICTION = 77
-const CARDS = 7
 const CARD_THICK = 0.1
 const FIELD_LINE = -1.2
 const TEXT = 0.2
+
+const MAX_VISIBLE_CARDS = 7
 
 const { abs } = Math
 type PosRot = { position: Vec3; rotation: Vec3 }
@@ -26,12 +28,12 @@ type FastSharedState = {
 }
 const SELECTED_CARD_STATE: FastSharedState = { active: false }
 type FastSelfState = { positionsIndex: number; current: PosRot }[]
-const CARD_STATE: FastSelfState = Array.from({ length: CARDS }).map((_, i) => ({
+const CARD_STATE: FastSelfState = Array.from({ length: MAX_VISIBLE_CARDS }).map((_, i) => ({
   current: { position: zVec, rotation: zVec },
   positionsIndex: i,
 }))
 
-const POSITIONS: PosRot[] = Array.from({ length: CARDS }).map((_, i) => ({
+const POSITIONS: PosRot[] = Array.from({ length: MAX_VISIBLE_CARDS }).map((_, i) => ({
   position: zVec,
   rotation: zVec,
 }))
@@ -54,7 +56,6 @@ const COLORS: { color: string; luma: number }[] = [
   '#ffb252',
   '#94d46f',
   '#63cdb0',
-  '#1d120d',
 ]
   .sort(() => Math.random() - 0.5)
   .map((color) => ({ color, luma: luma(color) }))
@@ -70,12 +71,12 @@ function luma(color: string): number {
   return luma / 255
 }
 
-const liveDataAtom = atomFamily<string | null, number>({
+const liveDataAtom = atomFamily<string | null, string>({
   key: 'liveData',
   default: null,
 })
 
-function LiveText({ index }: { index: number }) {
+function LiveText({ index }: { index: string }) {
   const data = useRecoilValue(liveDataAtom(index))
   const isDark = true
   return (
@@ -92,26 +93,28 @@ function LiveText({ index }: { index: number }) {
   )
 }
 
-function Card({ i, setActive }: { i: number; setActive: (active: boolean) => void }) {
+function Card({ i, identity, setActive }: { i: number; identity: string; setActive: (active: boolean) => void }) {
   const texture = useTexture(`img/cards/melty-boy0-q25.png`)
   const { viewport } = useThree()
-  const setData = useSetRecoilState(liveDataAtom(i))
-  useEffect(() => {
-    // determines the position of the card based on its index, the number of cards and the width of the viewport
-    // the card is positioned in a stack evenly spread from left of screeen to right of the viewport
-    const increment = Math.min(viewport.width / CARDS, 1)
-    const x = (i - (CARDS - 1) / 2) * increment
-    const z = -2.9
-    const pos = [x, 0, z + CARD_THICK * i] as Vec3
-
-    POSITIONS[i].position = pos
-  }, [i, viewport.width])
+  const setData = useSetRecoilState(liveDataAtom(identity))
   const [spring, setSpring] = useSpring(() => ({
-    scale: [1, 1, 1] as Vec3,
-    position: zVec,
+    scale: [0, 0, 0] as Vec3,
+    // position should be based on if the card is coming from the left or right
+    position: POSITIONS[i].position || zVec,
     rotation: zVec,
     config: { mass: MASS, friction: FRICTION, tension: 2000 },
   }))
+  useEffect(() => {
+    // determines the position of the card based on its index, the number of cards and the width of the viewport
+    // the card is positioned in a stack evenly spread from left of screeen to right of the viewport
+    const increment = Math.min(viewport.width / MAX_VISIBLE_CARDS, 1)
+    const x = (i - (MAX_VISIBLE_CARDS - 1) / 2) * increment
+    const z = -2.9
+    const pos = [x, 0, z + CARD_THICK * i] as Vec3
+    POSITIONS[i].position = pos
+    setSpring.start({ position: pos, scale: [1, 1, 1] })
+  }, [i, viewport.width, identity, setSpring])
+
   const bind = useDrag(({ movement, event, first, last }) => {
     const SELF = CARD_STATE[i]
     // get card's current position
@@ -183,7 +186,7 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
       if (active.offset.y < FIELD_LINE) {
         const spring_x = spring_position[0]
         // if spring_x is far enough away from POSITIONS[SELF.positionsIndex] then swap the cards index with the closest card
-        const increment = Math.min(viewport.width / CARDS, 1) / 2
+        const increment = Math.min(viewport.width / MAX_VISIBLE_CARDS, 1) / 2
         if (abs(spring_x - (target.position[0] - increment)) > increment) {
           // for POSITIONS, find the position closest to spring_x, and swap that card's index with the current cards index
           const range = POSITIONS.map((x, i) => [x.position[0], i])
@@ -231,9 +234,9 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
       })
     }
   })
-  // const { color, luma } = COLORS[i]
-  const isDark = true //luma < 0.2
-  const label = i + 1
+  const { color, luma } = COLORS[Number(identity) % COLORS.length]
+  const isDark = true // luma < 0.2
+  const label = identity
   // @ts-ignore
   const bindType = bind()
   return (
@@ -246,7 +249,7 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
         <meshBasicMaterial opacity={0} transparent attach='material-2' />
         <meshBasicMaterial opacity={0} transparent attach='material-3' />
         <meshBasicMaterial opacity={0} transparent attach='material-5' />
-        <meshStandardMaterial attach='material-4' map={texture} bumpMap={texture} transparent />
+        <meshStandardMaterial attach='material-4' map={texture} bumpMap={texture} transparent color={color} />
         <Text
           font='Rubik-Regular.ttf'
           scale={[TEXT, TEXT, TEXT]}
@@ -257,7 +260,7 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
         >
           {label}
         </Text>
-        <LiveText index={i} />
+        <LiveText index={identity} />
         <Text
           font='Rubik-Regular.ttf'
           scale={[TEXT, TEXT, TEXT]}
@@ -278,7 +281,7 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
           anchorY='top-baseline'
           position={[0, -0.28, CARD_THICK / 1.9]}
         >
-          {Array(label).fill('Lorem Ipsum Lorem Ipsum').join('\n')}
+          Lorem Ipsum Lorem Ipsum
         </Text>
       </a.mesh>
     </>
@@ -288,13 +291,10 @@ function Card({ i, setActive }: { i: number; setActive: (active: boolean) => voi
 
 export default function Hand({ setActive }: { setActive: (active: boolean) => void }) {
   const { raycaster, viewport } = useThree()
-
+  const cardRange = useCardRangeValue()
+  const cardsList = useCardsListValue()
   // const planeTexture = useTexture('./uv_grid.jpg')
-  const [transforms] = useState(
-    Array.from({ length: CARDS }, () => ({
-      key: Math.random(),
-    })),
-  )
+
   // plane for raycasting intersection with cursor in 3d scene, should not have touch events
   const raycastBoard = useRef<THREE.Mesh>(null)
   useFrame(() => {
@@ -314,8 +314,8 @@ export default function Hand({ setActive }: { setActive: (active: boolean) => vo
     <>
       {/* <Html className='pointer-events-none w-96 font-mono'></Html> */}
       <group position={[0, -1.6, 0]} rotation={[-0.1, 0, 0]}>
-        {transforms.map(({ key }, i) => (
-          <Card i={i} key={key} setActive={setActive} />
+        {cardsList.slice(cardRange[0], cardRange[1]).map((identity, i) => (
+          <Card identity={identity} i={i} key={identity} setActive={setActive} />
         ))}
         <mesh ref={raycastBoard} position={[0, viewport.height / 3, -3]}>
           <planeGeometry args={[viewport.width * 2, viewport.height * 2, 1, 1]} />

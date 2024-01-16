@@ -11,13 +11,17 @@ const withPWA = require('@ducanh2912/next-pwa').default({
   disable: process.env.NODE_ENV === 'development',
 })
 
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   // uncomment the following snippet if using styled components
   // compiler: {
   //   styledComponents: true,
   // },
   reactStrictMode: true, // Recommended for the `pages` directory, default in `app`.
-  images: {},
+  images: {
+    remotePatterns: [{ hostname: 'cdn.discordapp.com' }],
+    imageSizes: [56],
+  },
   webpack(config, { isServer }) {
     if (!isServer) {
       // We're in the browser build, so we can safely exclude the sharp module

@@ -4,6 +4,8 @@
   "editor.codeActionsOnSave": {
     "source.fixAll": "explicit"
   },
+  "editor.indentSize": "tabSize",
+  "editor.tabSize": 2,
   "eslint.validate": ["javascript"],
   "eslint.workingDirectories": [{ "mode": "auto" }]
 }

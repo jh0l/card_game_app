@@ -9,7 +9,7 @@ import {
   useImperativeHandle,
   useRef,
 } from 'react'
-import { OrbitControls, PerspectiveCamera, View as ViewImpl } from '@react-three/drei'
+import { OrbitControls, OrthographicCamera, PerspectiveCamera, View as ViewImpl } from '@react-three/drei'
 import { Three } from '@/src/helpers/components/Three'
 import { LocalEnvironment } from './LocalEnvironment'
 

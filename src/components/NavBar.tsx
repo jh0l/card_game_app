@@ -8,11 +8,22 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from '@/src/components/ui/navigation-menu'
-import React, { useMemo } from 'react'
-import { cn } from '../lib/utils'
+import React, { ReactNode, useMemo } from 'react'
+import { cn } from '@/src/lib/utils'
 import { useSession } from 'next-auth/react'
-import { PersonIcon } from '@radix-ui/react-icons/'
+import { DiscordLogoIcon, PersonIcon } from '@radix-ui/react-icons/'
 import { Spinner } from './Spinner'
+import Image from 'next/image'
+import { Button } from './ui/button'
+
+const NEXTAUTH_URL = process.env.NEXT_PUBLIC_NEXTAUTH_URL || ''
+
+type NavComponent = {
+  heading: React.ReactNode
+  href: string
+  description?: React.ReactNode
+  key: string
+}
 
 export default function NavBar() {
   const session = useSession()
@@ -26,42 +37,66 @@ export default function NavBar() {
     return <Spinner />
   }, [session.status, session.data])
 
-  const components = useMemo(() => {
+  const components: NavComponent[] = useMemo(() => {
     if (session.status === 'authenticated') {
+      const {
+        user: { image, email },
+      } = session.data!
       return [
         {
-          title: 'Logout',
+          key: 'user_profile',
+          heading: (
+            <span className='flex items-start gap-4'>
+              <Image className='rounded-full' src={image} width={64} height={64} alt='your profile picture' />
+              <span className='flex flex-col justify-center gap-2'>
+                <span>{email}</span>
+                <span>status: cool 😎</span>
+                <span>level: 1</span>
+              </span>
+            </span>
+          ),
+          href: '#',
+        },
+        {
+          key: 'sign_out',
+          heading: <Button className='w-full'>Sign out</Button>,
           href: '/api/auth/signout',
-          description: 'Sign out of your account.',
+          description: '',
         },
       ]
     }
     if (session.status === 'unauthenticated') {
       return [
         {
-          title: 'Login',
-          href: '/api/auth/signin',
-          description: 'Sign in to your account.',
+          key: 'sign_in',
+          heading: 'Sign in',
+          href: '/api/auth/signin?redirect_uri=' + NEXTAUTH_URL,
+          description: (
+            <span className='flex gap-3'>
+              Sign in with discord <DiscordLogoIcon className='scale-150' />
+            </span>
+          ),
         },
       ]
     }
     return [
       {
-        title: 'Please wait.',
+        key: 'loading',
+        heading: 'Please wait.',
         href: '#',
         description: <Spinner />,
       },
     ]
-  }, [session.status])
+  }, [session.status, session.data])
   return (
     <NavigationMenu className='m-0.5'>
       <NavigationMenuList>
         <NavigationMenuItem>
           <NavigationMenuTrigger>{menuSymbol}</NavigationMenuTrigger>
           <NavigationMenuContent>
-            <ul className='grid w-screen max-w-64 gap-3 p-4'>
+            <ul className='grid w-screen max-w-64 p-1'>
               {components.map((component) => (
-                <ListItem key={component.title} title={component.title} href={component.href}>
+                <ListItem key={component.key} heading={component.heading} href={component.href}>
                   {component.description}
                 </ListItem>
               ))}
@@ -74,8 +109,8 @@ export default function NavBar() {
   )
 }
 
-const ListItem = React.forwardRef<React.ElementRef<'a'>, React.ComponentPropsWithoutRef<'a'>>(
-  ({ className, title, children, ...props }, ref) => {
+const ListItem = React.forwardRef<React.ElementRef<'a'>, React.ComponentPropsWithoutRef<'a'> & { heading: ReactNode }>(
+  ({ className, heading, children, ...props }, ref) => {
     return (
       <li>
         <NavigationMenuLink asChild>
@@ -87,7 +122,7 @@ const ListItem = React.forwardRef<React.ElementRef<'a'>, React.ComponentPropsWit
             )}
             {...props}
           >
-            <div className='text-sm font-medium leading-none'>{title}</div>
+            <div className='text-sm font-medium leading-none'>{heading}</div>
             {/* eslint-disable-next-line tailwindcss/classnames-order*/}
             <p className='line-clamp-2 text-sm leading-snug text-muted-foreground'>{children}</p>
           </a>
