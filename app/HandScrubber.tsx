@@ -1,4 +1,5 @@
 'use client'
+import { MAX_VISIBLE_CARDS } from '@/src/components/canvas/game/Hand'
 import { useCardsListValue, useSetCardRange } from '@/src/state/cards'
 import { useSpring, animated } from '@react-spring/web'
 import { Bounds, useDrag } from '@use-gesture/react'
@@ -88,7 +89,7 @@ export function HandScrubber() {
     })
   })
   useEffect(() => {
-    const width = Math.min(Math.min(7, images.length) * bounds.cardWidth, bounds.width)
+    const width = Math.min(Math.min(MAX_VISIBLE_CARDS, images.length) * bounds.cardWidth, bounds.width)
     setSpring.start({ x: bounds.left, width, opacity: 1 })
     const cardWidth = bounds.cardWidth
     const x = bounds.left
@@ -104,7 +105,7 @@ export function HandScrubber() {
   const bindType = bind()
   const onClick: MouseEventHandler<HTMLImageElement> = (e) => {
     let x = e.currentTarget.getBoundingClientRect().left - bounds.offset - spring.width.get() / 2
-    const width = Math.min(Math.min(7, images.length) * bounds.cardWidth, bounds.width)
+    const width = Math.min(Math.min(MAX_VISIBLE_CARDS, images.length) * bounds.cardWidth, bounds.width)
     x = Math.max(x, bounds.left)
     x = Math.min(x, bounds.right - width)
     // snap so that the edges of the scrubber align with the edges of the cards

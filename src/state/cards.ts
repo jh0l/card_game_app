@@ -16,7 +16,7 @@ export const useSetCardsList = () => useSetRecoilState(cardsList)
 
 const cardRangeAtom = atom<number[]>({
   key: 'cardRange',
-  default: [0, 7],
+  default: [0, 19],
 })
 export const useCardRangeValue = () => useRecoilValue(cardRangeAtom)
 export const useSetCardRange = () => useSetRecoilState(cardRangeAtom)
