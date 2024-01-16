@@ -99,6 +99,7 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
   const { viewport } = useThree()
   const setCardList = useSetCardsList()
   const setData = useSetRecoilState(liveDataAtom(identity))
+  const [recalculate, setRecal] = useState(0)
   const [spring, setSpring] = useSpring(() => ({
     scale: [0, 0, 0] as Vec3,
     // position should be based on if the card is coming from the left or right
@@ -115,7 +116,7 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
     const pos = [x, 0, z + CARD_THICK * i] as Vec3
     POSITIONS[i].position = pos
     setSpring.start({ position: pos, scale: [1, 1, 1] })
-  }, [i, viewport.width, identity, setSpring])
+  }, [i, viewport.width, identity, setSpring, recalculate])
 
   const bind = useDrag(({ movement, event, first, last }) => {
     const SELF = CARD_STATE[i]
@@ -147,10 +148,11 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
         })
         return newList
       })
+      setRecal((x) => x + 1)
       CARD_STATE.forEach((x, i) => {
         x.positionsIndex = i
-        POSITIONS[i].position = x.current.position
-        POSITIONS[i].rotation = x.current.rotation
+        //POSITIONS[i].position = x.current.position
+        //POSITIONS[i].rotation = x.current.rotation
       })
     }
     if (SELECTED_CARD_STATE.active) {

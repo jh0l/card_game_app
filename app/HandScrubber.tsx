@@ -3,7 +3,7 @@ import { useCardsListValue, useSetCardRange } from '@/src/state/cards'
 import { useSpring, animated } from '@react-spring/web'
 import { Bounds, useDrag } from '@use-gesture/react'
 import Image from 'next/image'
-import { useEffect, useRef, useState } from 'react'
+import { MouseEventHandler, useEffect, useRef, useState } from 'react'
 
 type BoundsExt = Bounds & {
   mid: number
@@ -51,9 +51,7 @@ export function HandScrubber() {
           setBounds(bounds)
         }
       })
-    } catch (e) {
-      // console.error(e)
-    }
+    } catch (e) {}
   })
   const [spring, setSpring] = useSpring(() => ({
     x: 0,
@@ -61,24 +59,34 @@ export function HandScrubber() {
     opacity: 0,
     config: { mass: 1.3, friction: 77, tension: 2000, clamp: true },
   }))
-  const bind = useDrag(
-    ({ xy: [xE], ...params }) => {
-      params.event.stopPropagation()
-      const width = spring.width.get()
-      let x = xE - bounds.offset - width / 2 // limit x to bounds of left and right
-      x = Math.max(x, bounds.left)
-      x = Math.min(x, bounds.right - width)
-      // snap so that the edges of the scrubber align with the edges of the cards
-      const cardWidth = bounds.cardWidth
-      const left = bounds.left
-      x = Math.round((x - left) / cardWidth) * cardWidth + left
+  const bind = useDrag(({ xy: [xE] }) => {
+    //params.event.stopPropagation()
+    const width = spring.width.get()
+    let x = xE - bounds.offset - width / 2 // limit x to bounds of left and right
+    x = Math.max(x, bounds.left)
+    x = Math.min(x, bounds.right - width)
+    // snap so that the edges of the scrubber align with the edges of the cards
+    const cardWidth = bounds.cardWidth
+    const left = bounds.left
+    x = Math.round((x - left) / cardWidth) * cardWidth + left
+    const update = (x: number) => {
       const start = Math.round((x - left) / cardWidth)
       const end = Math.round((x + width - left) / cardWidth)
       setCardRange([start, end])
-      setSpring.start({ x, config: { velocity: params.velocity } })
-    },
-    { axis: 'x' },
-  )
+    }
+    setSpring.start({
+      x,
+      onChange({ value: { x } }) {
+        update(x)
+      },
+      onRest({ value: { x } }) {
+        update(x)
+      },
+      onStart({ value: { x } }) {
+        update(x)
+      },
+    })
+  })
   useEffect(() => {
     const width = Math.min(Math.min(7, images.length) * bounds.cardWidth, bounds.width)
     setSpring.start({ x: bounds.left, width, opacity: 1 })
@@ -94,6 +102,33 @@ export function HandScrubber() {
   }, [resizeObserver])
   // @ts-ignore
   const bindType = bind()
+  const onClick: MouseEventHandler<HTMLImageElement> = (e) => {
+    let x = e.currentTarget.getBoundingClientRect().left - bounds.offset - spring.width.get() / 2
+    const width = Math.min(Math.min(7, images.length) * bounds.cardWidth, bounds.width)
+    x = Math.max(x, bounds.left)
+    x = Math.min(x, bounds.right - width)
+    // snap so that the edges of the scrubber align with the edges of the cards
+    const cardWidth = bounds.cardWidth
+    const left = bounds.left
+    x = Math.round((x - left) / cardWidth) * cardWidth + left
+    const update = (x: number) => {
+      const start = Math.round((x - left) / cardWidth)
+      const end = Math.round((x + width - left) / cardWidth)
+      setCardRange([start, end])
+    }
+    setSpring.start({
+      x,
+      onChange({ value: { x } }) {
+        update(x)
+      },
+      onRest({ value: { x } }) {
+        update(x)
+      },
+      onStart({ value: { x } }) {
+        update(x)
+      },
+    })
+  }
   return (
     <div className='absolute inset-x-5 bottom-[1%] z-10 mx-auto flex h-14 w-4/5 max-w-screen-md items-center justify-center rounded bg-white/0'>
       <div className='absolute inset-0 flex w-full justify-center rounded bg-white/30' ref={cardsRef}>
@@ -105,11 +140,12 @@ export function HandScrubber() {
               fill
               sizes='(max-width: 56px) 56px, 37.333px'
               className='h-full max-h-14 w-full max-w-[37.333px] object-contain'
+              onClick={onClick}
             />
           </div>
         ))}
       </div>
-      <div className='absolute inset-0 w-full' ref={parentRef}>
+      <div className='absolute inset-0 h-0 w-full' ref={parentRef}>
         <animated.div
           className='flex h-14 items-center justify-center overflow-hidden rounded text-xs shadow-inner outline outline-primary/75'
           style={{ touchAction: 'none', ...spring }}
