@@ -1,4 +1,4 @@
-import { atom, useRecoilValue, useSetRecoilState } from 'recoil'
+import { atom, useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
 
 export const MAX_VISIBLE_CARDS = 7
 const CARDS = 14
@@ -15,10 +15,12 @@ const cardsList = atom<string[]>({
 
 export const useCardsListValue = () => useRecoilValue(cardsList)
 export const useSetCardsList = () => useSetRecoilState(cardsList)
+export const useCardsList = () => useRecoilState(cardsList)
 
 const cardRangeAtom = atom<number[]>({
   key: 'cardRange',
-  default: [0, 19],
+  default: [0, MAX_VISIBLE_CARDS - 1],
 })
 export const useCardRangeValue = () => useRecoilValue(cardRangeAtom)
 export const useSetCardRange = () => useSetRecoilState(cardRangeAtom)
+export const useCardRange = () => useRecoilState(cardRangeAtom)

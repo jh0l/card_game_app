@@ -25,7 +25,6 @@ const Hand = dynamic(() => import('@/src/components/canvas/game/Hand').then((mod
 import { View, Common } from '@/src/components/canvas/View'
 import { Dog, Duck } from '@/src/components/canvas/Examples'
 import Hand from '@/src/components/canvas/game/Hand'
-import { Html } from '@react-three/drei'
 //*/
 
 export function GameView() {

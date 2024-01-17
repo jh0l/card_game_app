@@ -1,12 +1,12 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useDrag } from '@use-gesture/react'
 import { useSpring, a } from '@react-spring/three'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTexture, Text } from '@react-three/drei'
 import { mapLinear, throttler } from '@/src/lib/utils'
 import * as THREE from 'three'
 import { atomFamily, useRecoilValue, useSetRecoilState, atom, useRecoilState } from 'recoil'
-import { MAX_VISIBLE_CARDS, useCardRangeValue, useCardsListValue, useSetCardsList } from '@/src/state/cards'
+import { MAX_VISIBLE_CARDS, useCardRange, useCardsList, useCardsListValue } from '@/src/state/cards'
 
 const MASS = 1.3
 const FRICTION = 77
@@ -22,7 +22,7 @@ const zVec: Vec3 = [0, 0, 0] as const
 const zPositions: PosRot = { position: zVec, rotation: zVec }
 const zVector3 = new THREE.Vector3(0, 0, 0)
 type FastSharedState = {
-  active: { vector: Vec2; cardIndex: number; offset: THREE.Vector3; first?: () => void; closest: number } | false
+  active: { cardIndex: number; offset: THREE.Vector3; first?: () => void; closest: number } | false
 }
 const SELECTED_CARD_STATE: FastSharedState = { active: false }
 type FastSelfState = { positionsIndex: number; current: PosRot }[]
@@ -54,9 +54,7 @@ export const COLORS: { color: string; luma: number }[] = [
   '#ffb252',
   '#94d46f',
   '#63cdb0',
-]
-  .sort(() => Math.random() - 0.8)
-  .map((color) => ({ color, luma: luma(color) }))
+].map((color) => ({ color, luma: luma(color) }))
 
 function luma(color: string): number {
   // https://www.w3.org/TR/AERT/#color-contrast
@@ -91,20 +89,21 @@ function LiveText({ index }: { index: string }) {
   )
 }
 
-const isReady = throttler(100)
-
 const recalculateAtom = atom<number>({
   key: 'recalculate',
   default: 0,
 })
 
+const scrollRangeThrottle = throttler(500, 500)
+
+let reInitDrag = false
 function Card({ i, identity, setActive }: { i: number; identity: string; setActive: (active: boolean) => void }) {
-  const cardRange = useCardRangeValue()
-  const texture = useTexture(`img/cards/melty-boy0-q25.png`)
   const { viewport } = useThree()
-  const setCardList = useSetCardsList()
+  const texture = useTexture(`img/cards/melty-boy0-q25.png`)
+  const [cardRange, setCardRange] = useCardRange()
+  const [cardsList, setCardList] = useCardsList()
   const setData = useSetRecoilState(liveDataAtom(identity))
-  const [recalculate, setRecal] = useRecoilState(recalculateAtom)
+  const [recalculate, setRecal] = useState(0)
   const [spring, setSpring] = useSpring(() => ({
     scale: [0, 0, 0] as Vec3,
     // position should be based on if the card is coming from the left or right
@@ -123,14 +122,15 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
     setSpring.start({ position: pos, scale: [1, 1, 1] })
   }, [i, viewport.width, identity, setSpring, recalculate])
 
-  const bind = useDrag(({ movement, event, first, last }) => {
+  const bind = useDrag(({ event, first, last }) => {
     const SELF = CARD_STATE[i]
     // get card's current position
     event.stopPropagation()
-    if (first) {
+    if (first || reInitDrag) {
+      reInitDrag = false
+      console.log('REINIT DRAG')
       setActive(true)
       SELECTED_CARD_STATE.active = {
-        vector: movement,
         cardIndex: i,
         offset: zVector3,
         closest: CARD_STATE[i].positionsIndex,
@@ -143,6 +143,7 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
       SELECTED_CARD_STATE.active = false
       setSpring.start({ rotation: flippingRotation })
       SELF.current.rotation = flippingRotation
+
       setCardList((list) => {
         // apply the new card order in CARD_STATE to the cardsList
         const newList = [...list]
@@ -180,7 +181,7 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
             position,
           })
           SELF.current.position = position
-          setSpring({
+          setSpring.start({
             scale,
             config: {
               friction: FRICTION * 4,
@@ -204,11 +205,10 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
     const { active } = SELECTED_CARD_STATE
     const [x, y, z] = spring.position.get()
     if (active && active.cardIndex === i) {
-      const spring_position = spring.position.get()
+      const spring_x = x
       if (active.offset.y < FIELD_LINE) {
-        const spring_x = spring_position[0]
         // if spring_x is far enough away from POSITIONS[SELF.positionsIndex] then swap the cards index with the closest card
-        const increment = Math.min(viewport.width / MAX_VISIBLE_CARDS, 1) / 2
+        const increment = Math.min(viewport.width / MAX_VISIBLE_CARDS, 1) / 1.5
         if (abs(spring_x - (target.position[0] - increment)) > increment) {
           // for POSITIONS, find the position closest to spring_x, and swap that card's index with the current cards index
           const range = POSITIONS.map((x, i) => [x.position[0], i])
@@ -223,7 +223,54 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
             targetCard.positionsIndex = temp
           }
         }
-      } else {
+        // if card.x > last card, activate throttle
+        if (
+          (SELF.positionsIndex === POSITIONS.length - 1 &&
+            spring_x > POSITIONS[POSITIONS.length - 1].position[0] + 0.5) ||
+          (SELF.positionsIndex === 0 && spring_x < POSITIONS[0].position[0] - 0.5)
+        ) {
+          // if throttle positive, increment cardRange
+          if (scrollRangeThrottle()) {
+            const direction = SELF.positionsIndex === 0 ? -1 : 1
+            // first reset all cards as if their positions were finalised
+            setCardList((list) => {
+              // apply the new card order in CARD_STATE to the cardsList
+              const newList = [...list]
+              const visible = newList.slice(cardRange[0], cardRange[1])
+              for (let i = 0; i < CARD_STATE.length; i++) {
+                const newIndex = CARD_STATE[i].positionsIndex + cardRange[0]
+                newList[newIndex] = visible[i]
+              }
+              if (direction === 1) {
+                // swap the current card with the last card
+                const temp = newList[newList.length - 1]
+                newList[newList.length - 1] = newList[newList.length - 2]
+                newList[newList.length - 2] = temp
+              } else {
+                // swap the current card with the first card
+                const temp = newList[0]
+                newList[0] = newList[1]
+                newList[1] = temp
+              }
+              return newList
+            })
+            for (let i = 0; i < CARD_STATE.length; i++) {
+              CARD_STATE[i].positionsIndex = i
+            }
+            setCardRange((x) => {
+              if (direction === 1) {
+                if (x[1] < cardsList.length) {
+                  return [x[0] + 1, x[1] + 1]
+                }
+              } else if (x[0] > 0) {
+                return [x[0] - 1, x[1] - 1]
+              }
+              return x
+            })
+            setRecal((x) => x + 1)
+            reInitDrag = true
+          }
+        }
       }
       const rotation = [0, -x / 30, 0] as Vec3
       if (!isSame(SELF.current.rotation, rotation)) {
@@ -314,7 +361,7 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
 
 export default function Hand({ setActive }: { setActive: (active: boolean) => void }) {
   const { raycaster, viewport } = useThree()
-  const cardRange = useCardRangeValue()
+  const [cardRange, setCardRange] = useCardRange()
   const cardsList = useCardsListValue()
   // const planeTexture = useTexture('./uv_grid.jpg')
 

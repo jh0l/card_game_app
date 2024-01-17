@@ -1,13 +1,14 @@
 'use client'
 
 import { useRef } from 'react'
-import dynamic from 'next/dynamic'
 import { RecoilRoot } from 'recoil'
 import { SessionProvider } from 'next-auth/react'
 import NavBar from '@/src/components/NavBar'
 import { ThemeProvider } from '@/src/components/theme-provider'
+import Scene from '@/src/components/canvas/Scene'
+// import dynamic from 'next/dynamic'
 
-const Scene = dynamic(() => import('@/src/components/canvas/Scene'), { ssr: false })
+// const Scene = dynamic(() => import('@/src/components/canvas/Scene'), { ssr: false })
 
 const Layout = ({ children }) => {
   const ref = useRef()

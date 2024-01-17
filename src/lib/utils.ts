@@ -1,13 +1,42 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-
+import throttle from 'lodash.throttle'
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/** after `ms` of not being called, the next time it is called it will be throttled and timer of `ms` will be set to allow, then it will act as a normal throttle function, repeating the process */
-export function throttler(ms: number) {
-  let timeoutId: { id: number } | null = null
+/**
+ * @param {number} ms
+  overcomplicated throttle that allows for an initial delay before the first positive
+  for example, if you want to wait 500ms before the first positive, and then 100ms between each positive
+  call the function with ms = 100 and initialDelay = 500
+  it will reset to the initial delay if not called for half the initial delay
+ */
+export function throttler(ms: number, initialDelay: number) {
+  let resetTimeout: NodeJS.Timeout
+  let result = false
+  let initial = true
+  let ready = -1
+  const throt = throttle(() => {
+    result = true
+  }, ms)
+  return () => {
+    if (ready < 0) {
+      ready = Date.now() + initialDelay
+    }
+    if (Date.now() > ready) {
+      throt()
+    }
+    const temp = result
+    result = false
+    clearTimeout(resetTimeout)
+    resetTimeout = setTimeout(() => {
+      result = false
+      initial = true
+      ready = -1
+    }, initialDelay / 2)
+    return temp
+  }
 }
 
 export function mapLinear(x, a, b, c, d) {
