@@ -1,8 +1,8 @@
-const title = 'React Three Next Starter'
-const url = 'https://react-three-next.vercel.app/'
-const description = 'The easiest and fastest way to create a 3D website using React Three Fiber and NextJS'
-const author = 'Author'
-const twitter = '@pmndrs'
+const title = 'Card Game Gestures'
+const url = 'https://hoarders.vercel.app'
+const description = 'Card Game Gestures Demonstration'
+const author = 'jh0l'
+const twitter = '@jh0co'
 
 export default function Head() {
   return (
@@ -18,10 +18,7 @@ export default function Head() {
       {/* Search Engine Optimization Meta Tags */}
       <title>{title}</title>
       <meta name='description' content={description} />
-      <meta
-        name='keywords'
-        content='Software Engineer,Product Manager,Project Manager,Data Scientist,Computer Scientist'
-      />
+      <meta name='keywords' content='Cards, Game, Multiplayer, Online, Trading, Collectible' />
       <meta name='robots' content='index,follow' />
       <meta name='distribution' content='web' />
       {/* 
@@ -43,8 +40,8 @@ export default function Head() {
       <link rel='apple-touch-startup-image' href='/startup.png' />
 
       {/* Meta Tags for HTML pages on Mobile */}
-      {/* <meta name="format-detection" content="telephone=yes"/>
-        <meta name="HandheldFriendly" content="true"/>  */}
+      <meta name='format-detection' content='telephone=yes' />
+      <meta name='HandheldFriendly' content='true' />
       <meta
         name='viewport'
         content='width=device-width, minimum-scale=1, maximum-scale=1, initial-scale=1.0, user-scalable=no'

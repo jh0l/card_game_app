@@ -11,10 +11,11 @@ import {
 import React, { ReactNode, useMemo } from 'react'
 import { cn } from '@/src/lib/utils'
 import { useSession } from 'next-auth/react'
-import { DiscordLogoIcon, PersonIcon } from '@radix-ui/react-icons/'
 import { Spinner } from './Spinner'
 import Image from 'next/image'
 import { Button } from './ui/button'
+import PersonIcon from '@/src/lib/icons/PersonIcon'
+import DiscordLogoIcon from '@/src/lib/icons/DiscordLogoIcon'
 
 const NEXTAUTH_URL = process.env.NEXT_PUBLIC_NEXTAUTH_URL || ''
 

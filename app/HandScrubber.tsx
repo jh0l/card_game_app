@@ -1,6 +1,6 @@
 'use client'
-import { MAX_VISIBLE_CARDS } from '@/src/components/canvas/game/Hand'
-import { useCardsListValue, useSetCardRange } from '@/src/state/cards'
+import { COLORS } from '@/src/components/canvas/game/Hand'
+import { MAX_VISIBLE_CARDS, useCardsListValue, useSetCardRange } from '@/src/state/cards'
 import { useSpring, animated } from '@react-spring/web'
 import { Bounds, useDrag } from '@use-gesture/react'
 import Image from 'next/image'
@@ -132,17 +132,25 @@ export function HandScrubber() {
   }
   return (
     <div className='absolute inset-x-5 bottom-[1%] z-10 mx-auto flex h-14 w-4/5 max-w-screen-md items-center justify-center rounded bg-white/0'>
-      <div className='absolute inset-0 flex w-full justify-center rounded bg-white/30' ref={cardsRef}>
-        {images.map(({ src, key }) => (
-          <div key={key} className='relative h-14 max-h-14 w-full max-w-[37.333px]'>
+      <div className='absolute inset-0 flex w-full justify-center rounded' ref={cardsRef}>
+        {images.map(({ src, key }, i) => (
+          <div
+            key={key}
+            className='relative max-h-14 w-full max-w-[37.333px]'
+            style={{
+              backgroundColor: `${COLORS[Number(cards[i]) % COLORS.length].color}66`,
+              // background opacity
+            }}
+          >
             <Image
               src={src}
               alt='a playing card'
               fill
-              sizes='(max-width: 56px) 56px, 37.333px'
-              className='h-full max-h-14 w-full max-w-[37.333px] object-contain'
+              sizes='(max-width: 56px) 56px'
+              className='h-fit w-full max-w-[37.333px] rounded object-cover mix-blend-overlay'
               onClick={onClick}
             />
+            <div className='absolute inset-0 top-3/4 flex items-center justify-center text-xs'>{cards[i]}</div>
           </div>
         ))}
       </div>
@@ -151,7 +159,9 @@ export function HandScrubber() {
           className='flex h-14 items-center justify-center overflow-hidden rounded text-xs shadow-inner outline outline-primary/75'
           style={{ touchAction: 'none', ...spring }}
           {...bindType}
-        ></animated.div>
+        >
+          👁👄👁
+        </animated.div>
       </div>
     </div>
   )

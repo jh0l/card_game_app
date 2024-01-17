@@ -1,20 +1,18 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useDrag } from '@use-gesture/react'
 import { useSpring, a } from '@react-spring/three'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useTexture, Text } from '@react-three/drei'
-import { mapLinear } from '@/src/lib/utils'
+import { mapLinear, throttler } from '@/src/lib/utils'
 import * as THREE from 'three'
-import { atomFamily, useRecoilValue, useSetRecoilState } from 'recoil'
-import { useCardRangeValue, useCardsListValue, useSetCardsList } from '@/src/state/cards'
+import { atomFamily, useRecoilValue, useSetRecoilState, atom, useRecoilState } from 'recoil'
+import { MAX_VISIBLE_CARDS, useCardRangeValue, useCardsListValue, useSetCardsList } from '@/src/state/cards'
 
 const MASS = 1.3
 const FRICTION = 77
 const CARD_THICK = 0.1
 const FIELD_LINE = -1.2
 const TEXT = 0.2
-
-export const MAX_VISIBLE_CARDS = 20
 
 const { abs } = Math
 type PosRot = { position: Vec3; rotation: Vec3 }
@@ -46,7 +44,7 @@ function isSame(a: Vec3, b: Vec3) {
 }
 
 // comic book sticker colors
-const COLORS: { color: string; luma: number }[] = [
+export const COLORS: { color: string; luma: number }[] = [
   '#4c69f6',
   '#4c94f6',
   '#f6db35',
@@ -57,7 +55,7 @@ const COLORS: { color: string; luma: number }[] = [
   '#94d46f',
   '#63cdb0',
 ]
-  .sort(() => Math.random() - 0.5)
+  .sort(() => Math.random() - 0.8)
   .map((color) => ({ color, luma: luma(color) }))
 
 function luma(color: string): number {
@@ -93,13 +91,20 @@ function LiveText({ index }: { index: string }) {
   )
 }
 
+const isReady = throttler(100)
+
+const recalculateAtom = atom<number>({
+  key: 'recalculate',
+  default: 0,
+})
+
 function Card({ i, identity, setActive }: { i: number; identity: string; setActive: (active: boolean) => void }) {
   const cardRange = useCardRangeValue()
   const texture = useTexture(`img/cards/melty-boy0-q25.png`)
   const { viewport } = useThree()
   const setCardList = useSetCardsList()
   const setData = useSetRecoilState(liveDataAtom(identity))
-  const [recalculate, setRecal] = useState(0)
+  const [recalculate, setRecal] = useRecoilState(recalculateAtom)
   const [spring, setSpring] = useSpring(() => ({
     scale: [0, 0, 0] as Vec3,
     // position should be based on if the card is coming from the left or right
@@ -142,18 +147,16 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
         // apply the new card order in CARD_STATE to the cardsList
         const newList = [...list]
         const visible = newList.slice(cardRange[0], cardRange[1])
-        CARD_STATE.forEach((x, i) => {
-          const newIndex = x.positionsIndex + cardRange[0]
+        for (let i = 0; i < CARD_STATE.length; i++) {
+          const newIndex = CARD_STATE[i].positionsIndex + cardRange[0]
           newList[newIndex] = visible[i]
-        })
+        }
         return newList
       })
       setRecal((x) => x + 1)
-      CARD_STATE.forEach((x, i) => {
-        x.positionsIndex = i
-        //POSITIONS[i].position = x.current.position
-        //POSITIONS[i].rotation = x.current.rotation
-      })
+      for (let i = 0; i < CARD_STATE.length; i++) {
+        CARD_STATE[i].positionsIndex = i
+      }
     }
     if (SELECTED_CARD_STATE.active) {
       // delay the drag to allow raycastboard to update
@@ -169,9 +172,9 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
         setData(`${pos[1].toFixed(2)}\n${state_y.toFixed(2)}`)
         const zoom = onField ? 1 : mapLinear(state_y, -2.7, FIELD_LINE - 0.2, 1, 2)
         let y_ = state_y + 1.75 + zoom * 0.9 + (onField ? 0.4 : 0)
-
+        const z = CARD_THICK * SELF.positionsIndex
         const scale = [zoom, zoom, zoom] as Vec3
-        const position = [x_, y_, onField ? -2.6 : -2] as Vec3
+        const position = [x_, y_, onField ? -2.6 : -2 + z] as Vec3
         if (!isSame(SELF.current.position, position) && !isZeroBug) {
           setSpring.start({
             position,
@@ -220,6 +223,7 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
             targetCard.positionsIndex = temp
           }
         }
+      } else {
       }
       const rotation = [0, -x / 30, 0] as Vec3
       if (!isSame(SELF.current.rotation, rotation)) {

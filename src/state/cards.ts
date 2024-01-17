@@ -1,6 +1,8 @@
 import { atom, useRecoilValue, useSetRecoilState } from 'recoil'
 
-const CARDS = 20
+export const MAX_VISIBLE_CARDS = 7
+const CARDS = 14
+
 const cards = Array.from({ length: CARDS })
   .fill(0)
   .map((_, i) => {
