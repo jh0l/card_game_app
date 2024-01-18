@@ -1,12 +1,12 @@
 'use client'
-import { COLORS } from '@/src/components/canvas/game/Hand'
+import { COLORS } from '@/src/components/canvas/game/PlayArea'
 import { Button } from '@/src/components/ui/button'
 import { throttler } from '@/src/lib/utils'
 import {
   MAX_VISIBLE_CARDS,
   useCardRange,
   useCardRangeValue,
-  useCardsListValue,
+  useHandCardsListValue,
   useSetCardRange,
 } from '@/src/state/cards'
 import { useSpring, animated } from '@react-spring/web'
@@ -21,46 +21,53 @@ type BoundsExt = Bounds & {
   offset: number
 }
 
+const lastSelfEvent: { time: number } = { time: 0 }
 export function HandScrubber() {
-  const cards = useCardsListValue()
+  const cards = useHandCardsListValue()
   const [cardRange, setCardRange] = useCardRange()
-  const [selfEvent, setSelfEvent] = useState(Date.now())
+  const [calculateBounds, setCalculateBounds] = useState(0)
   const [bounds, setBounds] = useState<BoundsExt>({ mid: 0, width: 0, cardWidth: 0, offset: 0 })
   const parentRef = useRef<HTMLDivElement>()
   const cardsRef = useRef<HTMLDivElement>()
   const [resizeObserver] = useState(() => {
     try {
       return new ResizeObserver(() => {
-        if (parentRef.current && cardsRef.current) {
-          const first = cardsRef.current.firstChild
-          const last = cardsRef.current.lastChild
-          if (!(first instanceof Element) || !(last instanceof Element)) {
-            throw new Error('Tried to get bounding rectangle of cards scrubber when it was empty')
-          }
-          // get boundingRect of first card in child nodes of parentRef
-          const firstRect = first.getBoundingClientRect()
-          const lastRect = last.getBoundingClientRect()
-          const width = lastRect.right - firstRect.left
-          // get offset from left of parentRef
-          // @ts-ignore
-          const offset = parentRef.current.getBoundingClientRect().left
-          const cardWidth = firstRect.width
-          const bounds: BoundsExt = {
-            left: firstRect.left - offset,
-            right: lastRect.right - offset,
-            mid: firstRect.left + width / 2,
-            width,
-            cardWidth,
-            offset,
-          }
-          setBounds(bounds)
-        }
+        setCalculateBounds((x) => x + 1)
       })
     } catch (e) {}
   })
   useEffect(() => {
     parentRef.current && resizeObserver.observe(parentRef.current)
   }, [resizeObserver])
+  useEffect(() => {
+    if (parentRef.current && cardsRef.current) {
+      const first = cardsRef.current.firstChild
+      const last = cardsRef.current.lastChild
+      if (!(first instanceof Element) || !(last instanceof Element)) {
+        throw new Error('Tried to get bounding rectangle of cards scrubber when it was empty')
+      }
+      // get boundingRect of first card in child nodes of parentRef
+      const firstRect = first.getBoundingClientRect()
+      const lastRect = last.getBoundingClientRect()
+      const width = lastRect.right - firstRect.left
+      // get offset from left of parentRef
+      // @ts-ignore
+      const offset = parentRef.current.getBoundingClientRect().left
+      const cardWidth = firstRect.width
+      const bounds: BoundsExt = {
+        left: firstRect.left - offset,
+        right: lastRect.right - offset,
+        mid: firstRect.left + width / 2,
+        width,
+        cardWidth,
+        offset,
+      }
+      setBounds(bounds)
+    }
+  }, [calculateBounds])
+  useEffect(() => {
+    setCalculateBounds((x) => x + 1)
+  }, [cards.length])
   const [spring, setSpring] = useSpring(() => ({
     x: 0,
     width: 0,
@@ -69,30 +76,27 @@ export function HandScrubber() {
   }))
   useEffect(() => {
     // if the scrubber is being used, don't update it
-    if (Date.now() - selfEvent < 500) return
+    if (Date.now() - lastSelfEvent.time < 500) return
     // set the scrubber to the correct position when the card range changes
     const width = Math.min(Math.min(MAX_VISIBLE_CARDS, cards.length) * bounds.cardWidth, bounds.width)
     const cardWidth = bounds.cardWidth
     const x = bounds.left + cardRange[0] * cardWidth
     setSpring.start({ x, width })
-  }, [cardRange, bounds, setSpring, cards.length, spring.x, selfEvent])
+  }, [cardRange, bounds, setSpring, cards.length, spring.x])
   useEffect(() => {
     // update the scrubber when the bounds or card length changes
     const width = Math.min(Math.min(MAX_VISIBLE_CARDS, cards.length) * bounds.cardWidth, bounds.width)
-    setSelfEvent(Date.now())
+    lastSelfEvent.time = Date.now()
+    const x = spring.x.get()
     setSpring.start({
-      x: bounds.left,
       width,
       opacity: 1,
       config: { mass: 1.3, friction: 100, tension: 4000, clamp: true },
     })
     const cardWidth = bounds.cardWidth
-    const x = bounds.left
-    const left = bounds.left
-    const start = Math.round((x - left) / cardWidth)
-    const end = Math.round((x + width - left) / cardWidth)
-    setCardRange([start, end])
-  }, [bounds, setSpring, cards.length, setCardRange])
+    const end = Math.round(width / cardWidth)
+    setCardRange([0, end])
+  }, [bounds, setSpring, spring.x, cards.length, setCardRange])
   const bind = useDrag(({ xy: [xE], event }) => {
     event.stopPropagation()
     const width = spring.width.get()
@@ -108,7 +112,7 @@ export function HandScrubber() {
       const end = Math.round((x + width - left) / cardWidth)
       setCardRange([start, end])
     }
-    setSelfEvent(Date.now())
+    lastSelfEvent.time = Date.now()
     setSpring.start({
       x,
       config: { mass: 1.3, friction: 100, tension: 4000, clamp: true },
@@ -138,7 +142,7 @@ export function HandScrubber() {
       const end = Math.round((x + width - left) / cardWidth)
       setCardRange([start, end])
     }
-    setSelfEvent(Date.now())
+    lastSelfEvent.time = Date.now()
     setSpring.start({
       x,
       onChange({ value: { x } }) {
@@ -155,7 +159,7 @@ export function HandScrubber() {
   // @ts-ignore
   const bindType = bind()
   return (
-    <div className='absolute inset-x-5 bottom-[1%] z-10 mx-auto flex h-14 w-4/5 max-w-screen-md items-center justify-center rounded bg-white/0'>
+    <div className='absolute inset-x-5 bottom-[1%] z-10 mx-auto flex h-14 w-[90%] max-w-screen-md items-center justify-center rounded bg-white/0'>
       <div className='absolute inset-0 flex w-full justify-center rounded' ref={cardsRef}>
         {cards.map((key, i) => (
           <button
@@ -194,7 +198,7 @@ export function HandScrubber() {
 
 function TestThrottle() {
   const range = useCardRangeValue()
-  const cards = useCardsListValue()
+  const cards = useHandCardsListValue()
   const setCardRange = useSetCardRange()
   const [throt] = useState(() => throttler(100, 1000))
 

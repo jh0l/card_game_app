@@ -6,7 +6,20 @@ import { useTexture, Text } from '@react-three/drei'
 import { mapLinear, throttler } from '@/src/lib/utils'
 import * as THREE from 'three'
 import { atomFamily, useRecoilValue, useSetRecoilState, atom, useRecoilState } from 'recoil'
-import { MAX_VISIBLE_CARDS, useCardRange, useCardsList, useCardsListValue } from '@/src/state/cards'
+import {
+  MAX_VISIBLE_CARDS,
+  useAddTableCard,
+  useCardRange,
+  useCardRangeValue,
+  useHandCardsList,
+  useHandCardsListValue,
+  useSetCardActive,
+  useSetTableParams,
+  useTableCardListValue,
+  useTableCardParams,
+  useTableParamsValue,
+} from '@/src/state/cards'
+import { PosRot, Vec3 } from '@/src/lib/types'
 
 const MASS = 1.3
 const FRICTION = 77
@@ -15,9 +28,7 @@ const FIELD_LINE = -1.2
 const TEXT = 0.2
 
 const { abs } = Math
-type PosRot = { position: Vec3; rotation: Vec3 }
-type Vec2 = [x: number, y: number]
-type Vec3 = [x: number, y: number, z: number, order?: THREE.EulerOrder]
+
 const zVec: Vec3 = [0, 0, 0] as const
 const zPositions: PosRot = { position: zVec, rotation: zVec }
 const zVector3 = new THREE.Vector3(0, 0, 0)
@@ -89,19 +100,17 @@ function LiveText({ index }: { index: string }) {
   )
 }
 
-const recalculateAtom = atom<number>({
-  key: 'recalculate',
-  default: 0,
-})
-
 const scrollRangeThrottle = throttler(500, 500)
 
 let reInitDrag = false
-function Card({ i, identity, setActive }: { i: number; identity: string; setActive: (active: boolean) => void }) {
+function Card({ i, identity }: { i: number; identity: string }) {
+  const addTableCard = useAddTableCard()
+  const tableParams = useTableParamsValue()
+  const setActive = useSetCardActive()
   const { viewport } = useThree()
   const texture = useTexture(`img/cards/melty-boy0-q25.png`)
   const [cardRange, setCardRange] = useCardRange()
-  const [cardsList, setCardList] = useCardsList()
+  const [cardsList, setCardList] = useHandCardsList()
   const setData = useSetRecoilState(liveDataAtom(identity))
   const [recalculate, setRecal] = useState(0)
   const [spring, setSpring] = useSpring(() => ({
@@ -120,7 +129,7 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
     const pos = [x, 0, z + CARD_THICK * i] as Vec3
     POSITIONS[i].position = pos
     setSpring.start({ position: pos, scale: [1, 1, 1] })
-  }, [i, viewport.width, identity, setSpring, recalculate])
+  }, [i, viewport.width, setSpring, recalculate])
 
   const bind = useDrag(({ event, first, last }) => {
     const SELF = CARD_STATE[i]
@@ -128,8 +137,7 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
     event.stopPropagation()
     if (first || reInitDrag) {
       reInitDrag = false
-      console.log('REINIT DRAG')
-      setActive(true)
+      setActive(identity)
       SELECTED_CARD_STATE.active = {
         cardIndex: i,
         offset: zVector3,
@@ -140,9 +148,6 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
     }
     if (last && SELECTED_CARD_STATE.active) {
       setActive(false)
-      SELECTED_CARD_STATE.active = false
-      setSpring.start({ rotation: flippingRotation })
-      SELF.current.rotation = flippingRotation
 
       setCardList((list) => {
         // apply the new card order in CARD_STATE to the cardsList
@@ -158,6 +163,23 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
       for (let i = 0; i < CARD_STATE.length; i++) {
         CARD_STATE[i].positionsIndex = i
       }
+      // if card is on field, add to table
+      const { offset } = SELECTED_CARD_STATE.active
+      // if on field and within bounds of table
+      const onTable = offset.y > FIELD_LINE && abs(offset.x - tableParams.position[0]) < tableParams.size / 2
+      if (onTable) {
+        addTableCard(
+          {
+            position: spring.position.get(),
+            rotation: [0, 0, 0],
+          },
+          identity,
+        )
+      } else {
+        setSpring.start({ rotation: flippingRotation })
+        SELF.current.rotation = flippingRotation
+      }
+      SELECTED_CARD_STATE.active = false
     }
     if (SELECTED_CARD_STATE.active) {
       // delay the drag to allow raycastboard to update
@@ -170,8 +192,9 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
         const pos = spring.position.get()
         // sometimes the card will get stuck at 0,0,0 - ignore this
         const isZeroBug = pos[1].toFixed(2) === '0.00' && state_y.toFixed(2) === '0.00'
-        setData(`${pos[1].toFixed(2)}\n${state_y.toFixed(2)}`)
-        const zoom = onField ? 1 : mapLinear(state_y, -2.7, FIELD_LINE - 0.2, 1, 2)
+        const [_x, _y] = pos.map((x) => (x as any).toFixed(1))
+        setData(`${_x}\n${_y}`)
+        const zoom = onField ? tableParams.size * 0.1 : mapLinear(state_y, -2.7, FIELD_LINE - 0.2, 1, 2)
         let y_ = state_y + 1.75 + zoom * 0.9 + (onField ? 0.4 : 0)
         const z = CARD_THICK * SELF.positionsIndex
         const scale = [zoom, zoom, zoom] as Vec3
@@ -187,6 +210,15 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
               friction: FRICTION * 4,
             },
           })
+        }
+        if (onField && !isSame(SELF.current.rotation, zVec)) {
+          setSpring.start({
+            rotation: zVec,
+            config: {
+              friction: FRICTION * 4,
+            },
+          })
+          SELF.current.rotation = zVec
         }
       }
       if (first) {
@@ -233,6 +265,7 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
           if (scrollRangeThrottle()) {
             const direction = SELF.positionsIndex === 0 ? -1 : 1
             // first reset all cards as if their positions were finalised
+
             setCardList((list) => {
               // apply the new card order in CARD_STATE to the cardsList
               const newList = [...list]
@@ -254,26 +287,29 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
               }
               return newList
             })
-            for (let i = 0; i < CARD_STATE.length; i++) {
-              CARD_STATE[i].positionsIndex = i
-            }
-            setCardRange((x) => {
-              if (direction === 1) {
-                if (x[1] < cardsList.length) {
-                  return [x[0] + 1, x[1] + 1]
+
+            setTimeout(() => {
+              setRecal((x) => x + 1)
+              setCardRange((x) => {
+                if (direction === 1) {
+                  if (x[1] < cardsList.length) {
+                    return [x[0] + 1, x[1] + 1]
+                  }
+                } else if (x[0] > 0) {
+                  return [x[0] - 1, x[1] - 1]
                 }
-              } else if (x[0] > 0) {
-                return [x[0] - 1, x[1] - 1]
+                return x
+              })
+              reInitDrag = true
+              for (let i = 0; i < CARD_STATE.length; i++) {
+                CARD_STATE[i].positionsIndex = i
               }
-              return x
-            })
-            setRecal((x) => x + 1)
-            reInitDrag = true
+            }, 16)
           }
         }
       }
       const rotation = [0, -x / 30, 0] as Vec3
-      if (!isSame(SELF.current.rotation, rotation)) {
+      if (!isSame(SELF.current.rotation, rotation) && active.offset.y < FIELD_LINE) {
         setTimeout(() => {
           setSpring.start({ rotation, config: { friction: 300 } })
           SELF.current.rotation = rotation
@@ -284,7 +320,7 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
       // else if card index is > active index, move card to the right
       const state_y = active.offset.y
       const onField = state_y > FIELD_LINE
-      const OFFSET = onField ? 0 : 0.4
+      const OFFSET = onField ? -0.4 : 0.4
       const offset = SELF.positionsIndex > CARD_STATE[active.cardIndex].positionsIndex ? OFFSET : -OFFSET
       const xOff = target.position[0] + offset
       if (!isSame(SELF.current.position, [xOff, y, z])) {
@@ -310,16 +346,10 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
   // @ts-ignore
   const bindType = bind()
   return (
-    // <group position={transform}>
     <>
       <a.mesh {...spring} {...bindType} castShadow>
-        <boxGeometry args={[1, 1.5, CARD_THICK]} />
-        <meshBasicMaterial opacity={0} transparent attach='material-0' />
-        <meshBasicMaterial opacity={0} transparent attach='material-1' />
-        <meshBasicMaterial opacity={0} transparent attach='material-2' />
-        <meshBasicMaterial opacity={0} transparent attach='material-3' />
-        <meshBasicMaterial opacity={0} transparent attach='material-5' />
-        <meshStandardMaterial attach='material-4' map={texture} bumpMap={texture} transparent color={color} />
+        <planeGeometry args={[1, 1.5, 1, 1]} />
+        <meshStandardMaterial map={texture} bumpMap={texture} transparent color={color} />
         <Text
           font='Rubik-Regular.ttf'
           scale={[TEXT, TEXT, TEXT]}
@@ -355,15 +385,111 @@ function Card({ i, identity, setActive }: { i: number; identity: string; setActi
         </Text>
       </a.mesh>
     </>
-    // </group>
   )
 }
 
-export default function Hand({ setActive }: { setActive: (active: boolean) => void }) {
+function Hand() {
+  const cardRange = useCardRangeValue()
+  const cardsList = useHandCardsListValue()
+  return (
+    <>
+      {cardsList.slice(cardRange[0], cardRange[1]).map((identity, i) => (
+        <Card identity={identity} i={i} key={identity} />
+      ))}
+    </>
+  )
+}
+
+function TableCard({ identity }: { identity: string }) {
+  const { size } = useTableParamsValue()
+  const texture = useTexture(`img/cards/melty-boy0-q25.png`)
+  const params = useTableCardParams(identity)
+  const cardSize = size * 0.1
+  const [spring, setSpring] = useSpring(() => ({
+    scale: [cardSize, cardSize, cardSize] as Vec3,
+    position: params.position,
+    rotation: params.rotation,
+    config: { mass: MASS, friction: FRICTION, tension: 2000 },
+  }))
+  useEffect(() => {
+    setSpring.start({
+      position: params.position,
+      rotation: params.rotation,
+    })
+  }, [params.position, params.rotation, setSpring])
+  const { color, luma } = COLORS[Number(identity) % COLORS.length]
+  const isDark = true // luma < 0.2
+  const label = identity
+  return (
+    <a.mesh {...(spring as any)} castShadow>
+      <planeGeometry args={[1, 1.5, 1, 1]} />
+      <meshStandardMaterial map={texture} bumpMap={texture} transparent color={color} />
+      <Text
+        font='Rubik-Regular.ttf'
+        scale={[TEXT, TEXT, TEXT]}
+        color={isDark ? 'white' : 'black'}
+        anchorX='left'
+        anchorY='top'
+        position={[-1 / 2.2, 1.5 / 2.2, CARD_THICK / 1.9]}
+      >
+        {label}
+      </Text>
+      <LiveText index={identity} />
+      <Text
+        font='Rubik-Regular.ttf'
+        scale={[TEXT, TEXT, TEXT]}
+        color={isDark ? 'white' : 'black'}
+        anchorX='right'
+        anchorY='bottom-baseline'
+        position={[-1 / -2.2, 1.5 / -2.2, CARD_THICK / 1.9]}
+      >
+        {label}
+      </Text>
+      <Text
+        font='Rubik-Regular.ttf'
+        scale={[TEXT / 3.2, TEXT / 3.2, TEXT / 3.2]}
+        color={isDark ? 'white' : 'black'}
+        outlineWidth={0.005}
+        outlineColor={!isDark ? 'white' : 'black'}
+        anchorX='center'
+        anchorY='top-baseline'
+        position={[0, -0.28, CARD_THICK / 1.9]}
+      >
+        Lorem Ipsum Lorem Ipsum
+      </Text>
+    </a.mesh>
+  )
+}
+function Table() {
+  const tableCardsList = useTableCardListValue()
+  const { viewport } = useThree()
+  const planeTexture = useTexture('./uv_grid.jpg')
+  const setParams = useSetTableParams()
+  // set so table reaches edges of screen if screen long enough
+  const size = Math.min(viewport.width * 1.3, viewport.height * 0.84)
+  useEffect(() => {
+    setParams({
+      size,
+      position: [0, (viewport.height * 1.9) / 3, -2.8],
+    })
+  }, [size, setParams, viewport.height])
+  return (
+    <>
+      <mesh position={[0, (viewport.height * 1.9) / 3, -2.8]}>
+        <planeGeometry args={[size, size, 1, 1]} />
+        <meshBasicMaterial map={planeTexture} />
+      </mesh>
+      {tableCardsList.map((card) => (
+        <TableCard identity={card} key={card} />
+      ))}
+    </>
+  )
+}
+
+export default function PlayArea() {
   const { raycaster, viewport } = useThree()
-  const [cardRange, setCardRange] = useCardRange()
-  const cardsList = useCardsListValue()
-  // const planeTexture = useTexture('./uv_grid.jpg')
+
+  const planeTexture = useTexture('./uv_grid.jpg')
 
   // plane for raycasting intersection with cursor in 3d scene, should not have touch events
   const raycastBoard = useRef<THREE.Mesh>(null)
@@ -380,18 +506,25 @@ export default function Hand({ setActive }: { setActive: (active: boolean) => vo
       SELECTED_CARD_STATE.active.first?.()
     }
   })
+  const scale = 3.39
   return (
     <>
       {/* <Html className='pointer-events-none w-96 font-mono'></Html> */}
       <group position={[0, -1.6, 0]} rotation={[-0.1, 0, 0]}>
-        {cardsList.slice(cardRange[0], cardRange[1]).map((identity, i) => (
-          <Card identity={identity} i={i} key={identity} setActive={setActive} />
-        ))}
+        <Hand />
+        <Table />
         <mesh ref={raycastBoard} position={[0, viewport.height / 3, -3]}>
           <planeGeometry args={[viewport.width * 2, viewport.height * 2, 1, 1]} />
           {/* transparent material */}
           {/* <meshBasicMaterial map={planeTexture} color='blue' opacity={0.5} transparent /> */}
           <meshBasicMaterial opacity={0} transparent />
+        </mesh>
+        <mesh position={[0, 4, -10]}>
+          <planeGeometry args={[viewport.width * scale, viewport.height * scale, 1, 1]} />
+          {/* transparent material */}
+          <meshBasicMaterial map={planeTexture} color='blue' opacity={0.5} transparent />
+          {/* <meshBasicMaterial map={planeTexture} color='red' /> */}
+          {/* <meshBasicMaterial opacity={0} transparent /> */}
         </mesh>
       </group>
     </>

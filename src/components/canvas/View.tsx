@@ -12,6 +12,7 @@ import {
 import { OrbitControls, OrthographicCamera, PerspectiveCamera, View as ViewImpl } from '@react-three/drei'
 import { Three } from '@/src/helpers/components/Three'
 import { LocalEnvironment } from './LocalEnvironment'
+import { useCardActiveValue } from '@/src/state/cards'
 
 export const Common = ({ color }: { color?: string }) => (
   <Suspense fallback={null}>
@@ -27,13 +28,10 @@ export const Common = ({ color }: { color?: string }) => (
 )
 
 // props containing children, orbit (boolean), and props for Div element
-type ViewProps = PropsWithChildren<
-  {
-    orbit?: boolean
-  } & DetailedHTMLProps<HTMLAttributes<HTMLDivElement>, HTMLDivElement>
->
+type ViewProps = PropsWithChildren<DetailedHTMLProps<HTMLAttributes<HTMLDivElement>, HTMLDivElement>>
 
-const View = forwardRef<{}, ViewProps>(({ children, orbit, ...props }, ref) => {
+const View = forwardRef<{}, ViewProps>(({ children, ...props }, ref) => {
+  const active = useCardActiveValue()
   const localRef = useRef(null)
   useImperativeHandle(ref, () => localRef.current)
 

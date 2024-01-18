@@ -24,18 +24,30 @@ const Hand = dynamic(() => import('@/src/components/canvas/game/Hand').then((mod
 /*/
 import { View, Common } from '@/src/components/canvas/View'
 import { Dog, Duck } from '@/src/components/canvas/Examples'
-import Hand from '@/src/components/canvas/game/Hand'
+import PlayArea from '@/src/components/canvas/game/PlayArea'
+import { useTableParamsValue } from '@/src/state/cards'
 //*/
 
-export function GameView() {
-  const [active, setActive] = useState(false)
+function Players() {
+  const { size, position } = useTableParamsValue()
+  const x = size / 2
+  const z = position[2] - 0.5
+  const scale = 0.6
   return (
-    <View orbit={!active} className='mx-auto h-full w-full max-w-screen-lg bg-black opacity-[0.14]'>
+    <group position={[0, -1.6, z]}>
+      <Duck position={[x, 0, 0]} scale={scale} rotation={[0.0, -0.3, 0]} />
+      <Dog position={[-x, 0, 0]} scale={scale} rotation={[0.0, 0.3, 0]} />
+    </group>
+  )
+}
+
+export function GameView() {
+  return (
+    <View className='mx-auto h-full w-full max-w-screen-lg bg-black opacity-[0.14]'>
       <Common />
       <Suspense fallback={null}>
-        <Duck position={[1.5, -0.6, -3]} scale={1} rotation={[0.0, -0.3, 0]} />
-        <Dog position={[0, 1, -4]} scale={1} rotation={[0.0, -0.3, 0]} />
-        <Hand setActive={setActive} />
+        <Players />
+        <PlayArea />
       </Suspense>
     </View>
   )
