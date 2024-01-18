@@ -40,6 +40,7 @@ export function HandScrubber() {
     parentRef.current && resizeObserver.observe(parentRef.current)
   }, [resizeObserver])
   useEffect(() => {
+    // recalculate bounds when calculateBounds changes (triggered by resize)
     if (parentRef.current && cardsRef.current) {
       const first = cardsRef.current.firstChild
       const last = cardsRef.current.lastChild
@@ -87,15 +88,28 @@ export function HandScrubber() {
     // update the scrubber when the bounds or card length changes
     const width = Math.min(Math.min(MAX_VISIBLE_CARDS, cards.length) * bounds.cardWidth, bounds.width)
     lastSelfEvent.time = Date.now()
-    const x = spring.x.get()
+    let _x = spring.x.get()
+    // if current _x is before the left bound, move it to the left bound
+    if (_x < bounds.left) {
+      _x = bounds.left
+    } else if (_x > bounds.right - width) {
+      _x = bounds.right - width
+    } else {
+      // snap _x to the nearest card
+      const cardWidth = bounds.cardWidth
+      const left = bounds.left
+      _x = Math.round((_x - left) / cardWidth) * cardWidth + left
+    }
     setSpring.start({
+      x: _x,
       width,
       opacity: 1,
       config: { mass: 1.3, friction: 100, tension: 4000, clamp: true },
     })
     const cardWidth = bounds.cardWidth
+    const start = Math.round((spring.x.get() - bounds.left) / cardWidth)
     const end = Math.round(width / cardWidth)
-    setCardRange([0, end])
+    setCardRange([start, end])
   }, [bounds, setSpring, spring.x, cards.length, setCardRange])
   const bind = useDrag(({ xy: [xE], event }) => {
     event.stopPropagation()
