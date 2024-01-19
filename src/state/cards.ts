@@ -1,8 +1,77 @@
-import { atom, atomFamily, useRecoilCallback, useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
+import {
+  atom,
+  atomFamily,
+  selectorFamily,
+  useRecoilCallback,
+  useRecoilState,
+  useRecoilValue,
+  useSetRecoilState,
+} from 'recoil'
 import { Vec3 } from '../lib/types'
+import { createHash } from 'crypto'
 
 export const MAX_VISIBLE_CARDS = 7
 const CARDS = 20
+
+// comic book sticker colors
+export const COLORS: { color: string; luma: number }[] = [
+  '#4f4cf6',
+  '#4c69f6',
+  '#4c94f6',
+  '#4ccbf6',
+  '#4cf6e5',
+  '#4cf6b8',
+  '#4cf68c',
+  '#4cf65f',
+  '#4cf633',
+  '#6ef633',
+  '#9cf633',
+  '#c8f633',
+  '#f6f633',
+  '#f6db35',
+  '#ffc510',
+  '#ffb252',
+  '#f76433',
+  '#ee5454',
+  '#ee54a8',
+  '#ee54f0',
+  '#c454ee',
+  '#9b54ee',
+  '#7c54ee',
+  '#5e54ee',
+  '#545bee',
+].map((color) => ({ color, luma: luma(color) }))
+
+function luma(color: string): number {
+  // https://www.w3.org/TR/AERT/#color-contrast
+  const rgb = parseInt(color.slice(1), 16)
+  const red = (rgb >> 16) & 0xff
+  const green = (rgb >> 8) & 0xff
+  const blue = (rgb >> 0) & 0xff
+  // returns the perceptive luminance of a color as a value between 0 and 1
+  const luma = 0.2126 * red + 0.7152 * green + 0.0722 * blue // per ITU-R BT.709
+  return luma / 255
+}
+
+function hash(str: string): number {
+  const hasher = createHash('md5')
+  const res = hasher.update(str).digest('hex')
+  return parseInt(res, 16)
+}
+
+const cardColorSelector = selectorFamily<{ color: string; luma: number }, string>({
+  key: 'cardColor',
+  get: (identity) => () => {
+    if (identity === undefined) {
+      debugger
+    }
+    const id = hash(identity) % COLORS.length
+    const color = COLORS[id]
+    return color
+  },
+})
+
+export const useCardColor = (identity: string) => useRecoilValue(cardColorSelector(identity))
 
 const cards = Array.from({ length: CARDS })
   .fill(0)
@@ -71,4 +140,23 @@ export const useAddTableCard = () => {
     [],
   )
 }
+
 export const useTableCardParams = (identity: string) => useRecoilValue(tableCardParams(identity))
+
+export const useAddHandCard = () => {
+  return useRecoilCallback(
+    ({ set }) =>
+      (identity: string) => {
+        set(handCardsList, (list) => {
+          // for some reason sometimes we get duplicates
+          if (list.includes(identity)) {
+            return list
+          }
+          const newList = [...list, identity]
+          return newList
+        })
+        set(tableCardList, (list) => list.filter((card) => card !== identity))
+      },
+    [],
+  )
+}

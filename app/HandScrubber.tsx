@@ -1,9 +1,9 @@
 'use client'
-import { COLORS } from '@/src/components/canvas/game/PlayArea'
 import { Button } from '@/src/components/ui/button'
 import { throttler } from '@/src/lib/utils'
 import {
   MAX_VISIBLE_CARDS,
+  useCardColor,
   useCardRange,
   useCardRangeValue,
   useHandCardsListValue,
@@ -45,7 +45,8 @@ export function HandScrubber() {
       const first = cardsRef.current.firstChild
       const last = cardsRef.current.lastChild
       if (!(first instanceof Element) || !(last instanceof Element)) {
-        throw new Error('Tried to get bounding rectangle of cards scrubber when it was empty')
+        // hand is empty
+        return
       }
       // get boundingRect of first card in child nodes of parentRef
       const firstRect = first.getBoundingClientRect()
@@ -73,7 +74,7 @@ export function HandScrubber() {
     x: 0,
     width: 0,
     opacity: 0,
-    config: { mass: 1.3, friction: 100, tension: 4000, clamp: true },
+    config: { mass: 1.3, friction: 88, tension: 2000, clamp: true },
   }))
   useEffect(() => {
     // if the scrubber is being used, don't update it
@@ -107,8 +108,9 @@ export function HandScrubber() {
       config: { mass: 1.3, friction: 100, tension: 4000, clamp: true },
     })
     const cardWidth = bounds.cardWidth
-    const start = Math.round((spring.x.get() - bounds.left) / cardWidth)
-    const end = Math.round(width / cardWidth)
+    // set the card range to the cards that are visible in the scrubber
+    const start = Math.round((_x - bounds.left) / cardWidth)
+    const end = Math.round((_x + width - bounds.left) / cardWidth)
     setCardRange([start, end])
   }, [bounds, setSpring, spring.x, cards.length, setCardRange])
   const bind = useDrag(({ xy: [xE], event }) => {
@@ -129,7 +131,7 @@ export function HandScrubber() {
     lastSelfEvent.time = Date.now()
     setSpring.start({
       x,
-      config: { mass: 1.3, friction: 100, tension: 4000, clamp: true },
+      config: { mass: 1.3, friction: 88, tension: 1500, clamp: true },
 
       onChange({ value: { x } }) {
         update(x)
@@ -143,6 +145,8 @@ export function HandScrubber() {
     })
   })
   const onClick: MouseEventHandler<HTMLButtonElement> = (e) => {
+    // prevent other cards from being clicked
+    e.stopPropagation()
     let x = e.currentTarget.getBoundingClientRect().left - bounds.offset - spring.width.get() / 2
     const width = Math.min(Math.min(MAX_VISIBLE_CARDS, cards.length) * bounds.cardWidth, bounds.width)
     x = Math.max(x, bounds.left)
@@ -175,38 +179,46 @@ export function HandScrubber() {
   return (
     <div className='absolute inset-x-5 bottom-[1%] z-10 mx-auto flex h-14 w-[90%] max-w-screen-md items-center justify-center rounded bg-white/0'>
       <div className='absolute inset-0 flex w-full justify-center rounded' ref={cardsRef}>
-        {cards.map((key, i) => (
-          <button
-            key={key}
-            className='relative max-h-14 w-full max-w-[37.333px]'
-            style={{
-              backgroundColor: `${COLORS[Number(cards[i]) % COLORS.length].color}66`,
-              // background opacity
-            }}
-            onClick={onClick}
-          >
-            <Image
-              src='/img/cards/melty-boy0-q25.png'
-              alt='a playing card'
-              fill
-              sizes='(max-width: 56px) 56px'
-              className='pointer-events-none h-fit w-full max-w-[37.333px] rounded object-cover mix-blend-overlay'
-            />
-            <div className='absolute inset-0 top-3/4 flex items-center justify-center text-xs'>{cards[i]}</div>
-          </button>
-        ))}
+        {cards.map((key) =>
+          key === undefined ? <div key={key}></div> : <CardButton key={key} identity={key} onClick={onClick} />,
+        )}
       </div>
       <div className='absolute inset-0 h-0 w-full' ref={parentRef}>
-        <animated.div
-          className='flex h-14 items-center justify-center overflow-hidden rounded text-xs shadow-inner outline outline-primary/75'
-          style={{ touchAction: 'none', ...spring }}
-          {...bindType}
-        >
-          👁👄👁
-        </animated.div>
+        {cards.length > 0 && (
+          <animated.div
+            className='flex h-14 items-center justify-center overflow-hidden rounded text-xs shadow-inner outline outline-primary/75'
+            style={{ touchAction: 'none', ...spring }}
+            {...bindType}
+          >
+            👁👄👁
+          </animated.div>
+        )}
       </div>
       {/* <TestThrottle /> */}
     </div>
+  )
+}
+
+function CardButton({ identity, onClick }: { identity: string; onClick: MouseEventHandler<HTMLButtonElement> }) {
+  const { color } = useCardColor(identity)
+  return (
+    <button
+      className='relative max-h-14 w-full max-w-[37.333px]'
+      style={{
+        backgroundColor: `${color}66`,
+        // background opacity
+      }}
+      onClick={onClick}
+    >
+      <Image
+        src='/img/cards/melty-boy0-q25.png'
+        alt='a playing card'
+        fill
+        sizes='(max-width: 56px) 56px'
+        className='pointer-events-none h-fit w-full max-w-[37.333px] rounded object-cover mix-blend-overlay'
+      />
+      <div className='absolute inset-0 top-3/4 flex items-center justify-center text-xs'>{identity}</div>
+    </button>
   )
 }
 

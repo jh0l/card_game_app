@@ -9,10 +9,9 @@ import {
   useImperativeHandle,
   useRef,
 } from 'react'
-import { OrbitControls, OrthographicCamera, PerspectiveCamera, View as ViewImpl } from '@react-three/drei'
+import { PerspectiveCamera, View as ViewImpl } from '@react-three/drei'
 import { Three } from '@/src/helpers/components/Three'
 import { LocalEnvironment } from './LocalEnvironment'
-import { useCardActiveValue } from '@/src/state/cards'
 
 export const Common = ({ color }: { color?: string }) => (
   <Suspense fallback={null}>
@@ -31,7 +30,6 @@ export const Common = ({ color }: { color?: string }) => (
 type ViewProps = PropsWithChildren<DetailedHTMLProps<HTMLAttributes<HTMLDivElement>, HTMLDivElement>>
 
 const View = forwardRef<{}, ViewProps>(({ children, ...props }, ref) => {
-  const active = useCardActiveValue()
   const localRef = useRef(null)
   useImperativeHandle(ref, () => localRef.current)
 

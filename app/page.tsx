@@ -1,5 +1,6 @@
 import { GameView } from '@/src/components/canvas/game'
 import { HandScrubber } from './HandScrubber'
+import { TopRightMenu } from './TopRightMenu'
 
 export default function Page() {
   return (
@@ -7,6 +8,7 @@ export default function Page() {
       <div className='absolute inset-0'>
         <GameView />
         <HandScrubber />
+        <TopRightMenu />
       </div>
     </main>
   )

@@ -1,14 +1,17 @@
-import { useFrame, useThree } from '@react-three/fiber'
-import { useDrag } from '@use-gesture/react'
+import { ThreeEvent, useFrame, useThree } from '@react-three/fiber'
+import { useDrag, useGesture } from '@use-gesture/react'
 import { useSpring, a } from '@react-spring/three'
 import { useEffect, useRef, useState } from 'react'
-import { useTexture, Text } from '@react-three/drei'
+import { useTexture, Text, PresentationControls, MapControls } from '@react-three/drei'
 import { mapLinear, throttler } from '@/src/lib/utils'
 import * as THREE from 'three'
-import { atomFamily, useRecoilValue, useSetRecoilState, atom, useRecoilState } from 'recoil'
+import { atomFamily, useRecoilValue, useSetRecoilState } from 'recoil'
 import {
   MAX_VISIBLE_CARDS,
+  useAddHandCard,
   useAddTableCard,
+  useCardActiveValue,
+  useCardColor,
   useCardRange,
   useCardRangeValue,
   useHandCardsList,
@@ -20,6 +23,7 @@ import {
   useTableParamsValue,
 } from '@/src/state/cards'
 import { PosRot, Vec3 } from '@/src/lib/types'
+import { useCameraReset, useCameraResetValue } from '@/src/state/scene'
 
 const MASS = 1.3
 const FRICTION = 77
@@ -52,30 +56,6 @@ const flippingRotation = [0, 1, 0] as Vec3
 
 function isSame(a: Vec3, b: Vec3) {
   return a[0] === b[0] && a[1] === b[1] && a[2] === b[2]
-}
-
-// comic book sticker colors
-export const COLORS: { color: string; luma: number }[] = [
-  '#4c69f6',
-  '#4c94f6',
-  '#f6db35',
-  '#ffc510',
-  '#ee5454',
-  '#f76433',
-  '#ffb252',
-  '#94d46f',
-  '#63cdb0',
-].map((color) => ({ color, luma: luma(color) }))
-
-function luma(color: string): number {
-  // https://www.w3.org/TR/AERT/#color-contrast
-  const rgb = parseInt(color.slice(1), 16)
-  const red = (rgb >> 16) & 0xff
-  const green = (rgb >> 8) & 0xff
-  const blue = (rgb >> 0) & 0xff
-  // returns the perceptive luminance of a color as a value between 0 and 1
-  const luma = 0.2126 * red + 0.7152 * green + 0.0722 * blue // per ITU-R BT.709
-  return luma / 255
 }
 
 const liveDataAtom = atomFamily<string | null, string>({
@@ -149,20 +129,6 @@ function Card({ i, identity }: { i: number; identity: string }) {
     if (last && SELECTED_CARD_STATE.active) {
       setActive(false)
 
-      setCardList((list) => {
-        // apply the new card order in CARD_STATE to the cardsList
-        const newList = [...list]
-        const visible = newList.slice(cardRange[0], cardRange[1])
-        for (let i = 0; i < CARD_STATE.length; i++) {
-          const newIndex = CARD_STATE[i].positionsIndex + cardRange[0]
-          newList[newIndex] = visible[i]
-        }
-        return newList
-      })
-      setRecal((x) => x + 1)
-      for (let i = 0; i < CARD_STATE.length; i++) {
-        CARD_STATE[i].positionsIndex = i
-      }
       // if card is on field, add to table
       const { offset } = SELECTED_CARD_STATE.active
       // if on field and within bounds of table
@@ -176,6 +142,21 @@ function Card({ i, identity }: { i: number; identity: string }) {
           identity,
         )
       } else {
+        // reorder card list to reflect new card order
+        setCardList((list) => {
+          // apply the new card order in CARD_STATE to the cardsList
+          const newList = [...list]
+          const visible = newList.slice(cardRange[0], cardRange[1])
+          for (let i = 0; i < CARD_STATE.length; i++) {
+            const newIndex = CARD_STATE[i].positionsIndex + cardRange[0]
+            newList[newIndex] = visible[i]
+          }
+          return newList
+        })
+        setRecal((x) => x + 1)
+        for (let i = 0; i < CARD_STATE.length; i++) {
+          CARD_STATE[i].positionsIndex = i
+        }
         setSpring.start({ rotation: flippingRotation })
         SELF.current.rotation = flippingRotation
       }
@@ -207,7 +188,7 @@ function Card({ i, identity }: { i: number; identity: string }) {
           setSpring.start({
             scale,
             config: {
-              friction: FRICTION * 4,
+              friction: FRICTION * 2,
             },
           })
         }
@@ -320,7 +301,7 @@ function Card({ i, identity }: { i: number; identity: string }) {
       // else if card index is > active index, move card to the right
       const state_y = active.offset.y
       const onField = state_y > FIELD_LINE
-      const OFFSET = onField ? -0.4 : 0.4
+      const OFFSET = onField ? 0 : 0.4
       const offset = SELF.positionsIndex > CARD_STATE[active.cardIndex].positionsIndex ? OFFSET : -OFFSET
       const xOff = target.position[0] + offset
       if (!isSame(SELF.current.position, [xOff, y, z])) {
@@ -340,14 +321,14 @@ function Card({ i, identity }: { i: number; identity: string }) {
       })
     }
   })
-  const { color, luma } = COLORS[Number(identity) % COLORS.length]
+  const { color } = useCardColor(identity)
   const isDark = true // luma < 0.2
   const label = identity
   // @ts-ignore
   const bindType = bind()
   return (
     <>
-      <a.mesh {...spring} {...bindType} castShadow>
+      <a.mesh {...spring} {...bindType}>
         <planeGeometry args={[1, 1.5, 1, 1]} />
         <meshStandardMaterial map={texture} bumpMap={texture} transparent color={color} />
         <Text
@@ -401,6 +382,7 @@ function Hand() {
 }
 
 function TableCard({ identity }: { identity: string }) {
+  const addHandCard = useAddHandCard()
   const { size } = useTableParamsValue()
   const texture = useTexture(`img/cards/melty-boy0-q25.png`)
   const params = useTableCardParams(identity)
@@ -417,11 +399,15 @@ function TableCard({ identity }: { identity: string }) {
       rotation: params.rotation,
     })
   }, [params.position, params.rotation, setSpring])
-  const { color, luma } = COLORS[Number(identity) % COLORS.length]
+  const { color } = useCardColor(identity)
   const isDark = true // luma < 0.2
   const label = identity
+  const onClick = (event: ThreeEvent<MouseEvent>) => {
+    event.stopPropagation()
+    addHandCard(identity)
+  }
   return (
-    <a.mesh {...(spring as any)} castShadow>
+    <a.mesh {...(spring as any)} onClick={onClick}>
       <planeGeometry args={[1, 1.5, 1, 1]} />
       <meshStandardMaterial map={texture} bumpMap={texture} transparent color={color} />
       <Text
@@ -460,29 +446,71 @@ function TableCard({ identity }: { identity: string }) {
     </a.mesh>
   )
 }
+
+function CameraControls() {
+  const [cameraReset, setCameraReset] = useCameraReset()
+  const camera = useThree((three) => three.camera)
+  // support panning, zooming
+  const cardActive = useCardActiveValue()
+  useEffect(() => {
+    // modify the PresentationControls props to pan on the XY plane instead of the XZ plane
+    camera.up.set(0, 0, 1)
+  }, [camera.up])
+  useEffect(() => {
+    if (cameraReset === -1) {
+      camera.position.set(0, 0, 7)
+      camera.rotation.set(0, 0, 0)
+      setCameraReset(0)
+    }
+  }, [cameraReset, camera.position, camera.rotation, setCameraReset])
+  const onChange = () => {
+    console.log(cameraReset)
+    if (cameraReset === 0) {
+      setCameraReset(1)
+    }
+  }
+  return <MapControls enabled={cardActive === false} />
+}
+
 function Table() {
   const tableCardsList = useTableCardListValue()
   const { viewport } = useThree()
   const planeTexture = useTexture('./uv_grid.jpg')
+  const meshBasicMaterial = useRef<THREE.MeshBasicMaterial>(null)
+  /* stretch uv map of texture vertically so image repeats twice */
+  useEffect(() => {
+    if (meshBasicMaterial.current) {
+      // repeat texture
+      meshBasicMaterial.current.map.wrapS = THREE.RepeatWrapping
+      meshBasicMaterial.current.map.wrapT = THREE.RepeatWrapping
+      // stretch texture
+      meshBasicMaterial.current.map.repeat.set(2, 2)
+      meshBasicMaterial.current.map.needsUpdate = true
+    }
+  }, [])
   const setParams = useSetTableParams()
   // set so table reaches edges of screen if screen long enough
   const size = Math.min(viewport.width * 1.3, viewport.height * 0.84)
   useEffect(() => {
     setParams({
       size,
-      position: [0, (viewport.height * 1.9) / 3, -2.8],
+      position: [0, (viewport.height * 1.9) / 3, -3],
     })
   }, [size, setParams, viewport.height])
   return (
-    <>
-      <mesh position={[0, (viewport.height * 1.9) / 3, -2.8]}>
-        <planeGeometry args={[size, size, 1, 1]} />
-        <meshBasicMaterial map={planeTexture} />
+    <group position={[0, (viewport.height * 1.9) / 3, -3]}>
+      <CameraControls />
+      <mesh>
+        <planeGeometry args={[size, size, 1, 2]} />
+        {/* stretch uv map of texture vertically so image repeats twice */}
+        <meshBasicMaterial map={planeTexture} ref={meshBasicMaterial} />
       </mesh>
-      {tableCardsList.map((card) => (
-        <TableCard identity={card} key={card} />
-      ))}
-    </>
+      <group position={[0, -(viewport.height * 1.9) / 3, 3]}>
+        {tableCardsList.map((card) => (
+          <TableCard identity={card} key={card} />
+        ))}
+      </group>
+    </group>
   )
 }
 
@@ -512,20 +540,21 @@ export default function PlayArea() {
       {/* <Html className='pointer-events-none w-96 font-mono'></Html> */}
       <group position={[0, -1.6, 0]} rotation={[-0.1, 0, 0]}>
         <Hand />
-        <Table />
+
         <mesh ref={raycastBoard} position={[0, viewport.height / 3, -3]}>
           <planeGeometry args={[viewport.width * 2, viewport.height * 2, 1, 1]} />
           {/* transparent material */}
-          {/* <meshBasicMaterial map={planeTexture} color='blue' opacity={0.5} transparent /> */}
+          {/* <meshBasicMaterial map={planeTexture} color='red' opacity={0.5} transparent /> */}
           <meshBasicMaterial opacity={0} transparent />
         </mesh>
         <mesh position={[0, 4, -10]}>
           <planeGeometry args={[viewport.width * scale, viewport.height * scale, 1, 1]} />
           {/* transparent material */}
-          <meshBasicMaterial map={planeTexture} color='blue' opacity={0.5} transparent />
+          <meshBasicMaterial map={planeTexture} color='blue' opacity={0.4} transparent />
           {/* <meshBasicMaterial map={planeTexture} color='red' /> */}
           {/* <meshBasicMaterial opacity={0} transparent /> */}
         </mesh>
+        <Table />
       </group>
     </>
   )
