@@ -236,58 +236,58 @@ function Card({ i, identity }: { i: number; identity: string }) {
             targetCard.positionsIndex = temp
           }
         }
-        // if card.x > last card, activate throttle
-        if (
-          (SELF.positionsIndex === POSITIONS.length - 1 &&
-            spring_x > POSITIONS[POSITIONS.length - 1].position[0] + 0.5) ||
-          (SELF.positionsIndex === 0 && spring_x < POSITIONS[0].position[0] - 0.5)
-        ) {
-          // if throttle positive, increment cardRange
-          if (scrollRangeThrottle()) {
-            const direction = SELF.positionsIndex === 0 ? -1 : 1
-            // first reset all cards as if their positions were finalised
+        // // if card.x > last card, activate throttle
+        // if (
+        //   (SELF.positionsIndex === POSITIONS.length - 1 &&
+        //     spring_x > POSITIONS[POSITIONS.length - 1].position[0] + 0.5) ||
+        //   (SELF.positionsIndex === 0 && spring_x < POSITIONS[0].position[0] - 0.5)
+        // ) {
+        //   // if throttle positive, increment cardRange
+        //   if (scrollRangeThrottle()) {
+        //     const direction = SELF.positionsIndex === 0 ? -1 : 1
+        //     // first reset all cards as if their positions were finalised
 
-            setCardList((list) => {
-              // apply the new card order in CARD_STATE to the cardsList
-              const newList = [...list]
-              const visible = newList.slice(cardRange[0], cardRange[1])
-              for (let i = 0; i < CARD_STATE.length; i++) {
-                const newIndex = CARD_STATE[i].positionsIndex + cardRange[0]
-                newList[newIndex] = visible[i]
-              }
-              if (direction === 1) {
-                // swap the current card with the last card
-                const temp = newList[newList.length - 1]
-                newList[newList.length - 1] = newList[newList.length - 2]
-                newList[newList.length - 2] = temp
-              } else {
-                // swap the current card with the first card
-                const temp = newList[0]
-                newList[0] = newList[1]
-                newList[1] = temp
-              }
-              return newList
-            })
+        //     setCardList((list) => {
+        //       // apply the new card order in CARD_STATE to the cardsList
+        //       const newList = [...list]
+        //       const visible = newList.slice(cardRange[0], cardRange[1])
+        //       for (let i = 0; i < CARD_STATE.length; i++) {
+        //         const newIndex = CARD_STATE[i].positionsIndex + cardRange[0]
+        //         newList[newIndex] = visible[i]
+        //       }
+        //       if (direction === 1) {
+        //         // swap the current card with the last card
+        //         const temp = newList[newList.length - 1]
+        //         newList[newList.length - 1] = newList[newList.length - 2]
+        //         newList[newList.length - 2] = temp
+        //       } else {
+        //         // swap the current card with the first card
+        //         const temp = newList[0]
+        //         newList[0] = newList[1]
+        //         newList[1] = temp
+        //       }
+        //       return newList
+        //     })
 
-            setTimeout(() => {
-              setRecal((x) => x + 1)
-              setCardRange((x) => {
-                if (direction === 1) {
-                  if (x[1] < cardsList.length) {
-                    return [x[0] + 1, x[1] + 1]
-                  }
-                } else if (x[0] > 0) {
-                  return [x[0] - 1, x[1] - 1]
-                }
-                return x
-              })
-              reInitDrag = true
-              for (let i = 0; i < CARD_STATE.length; i++) {
-                CARD_STATE[i].positionsIndex = i
-              }
-            }, 16)
-          }
-        }
+        //     setTimeout(() => {
+        //       setRecal((x) => x + 1)
+        //       setCardRange((x) => {
+        //         if (direction === 1) {
+        //           if (x[1] < cardsList.length) {
+        //             return [x[0] + 1, x[1] + 1]
+        //           }
+        //         } else if (x[0] > 0) {
+        //           return [x[0] - 1, x[1] - 1]
+        //         }
+        //         return x
+        //       })
+        //       reInitDrag = true
+        //       for (let i = 0; i < CARD_STATE.length; i++) {
+        //         CARD_STATE[i].positionsIndex = i
+        //       }
+        //     }, 16)
+        //   }
+        // }
       }
       const rotation = [0, -x / 30, 0] as Vec3
       if (!isSame(SELF.current.rotation, rotation) && active.offset.y < FIELD_LINE) {
