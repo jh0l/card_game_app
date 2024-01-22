@@ -54,3 +54,7 @@ export function mapLinear(x, a, b, c, d) {
   v = invert ? c + d - v : v
   return v
 }
+
+export function crop(x: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, x))
+}

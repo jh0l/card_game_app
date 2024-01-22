@@ -1,7 +1,7 @@
 'use client'
 import { Suspense, useState } from 'react'
-/*
 import dynamic from 'next/dynamic'
+/*
 const View = dynamic(() => import('@/src/components/canvas/View').then((mod) => mod.View), {
   ssr: false,
   loading: () => (
@@ -23,23 +23,10 @@ const Duck = dynamic(() => import('@/src/components/canvas/Examples').then((mod)
 const Hand = dynamic(() => import('@/src/components/canvas/game/Hand').then((mod) => mod.default), { ssr: false })
 /*/
 import { View, Common } from '@/src/components/canvas/View'
-import { Dog, Duck } from '@/src/components/canvas/Examples'
 import PlayArea from '@/src/components/canvas/game/PlayArea'
-import { useTableParamsValue } from '@/src/state/cards'
-//*/
+import Players from '@/src/components/canvas/game/Players'
 
-function Players() {
-  const { size, position } = useTableParamsValue()
-  const x = size / 2
-  const z = position[2] - 0.5
-  const scale = 0.6
-  return (
-    <group position={[0, -1.6, z]}>
-      <Duck position={[x, 0, 0]} scale={scale} rotation={[0.0, -0.3, 0]} />
-      <Dog position={[-x, 0, 0]} scale={scale} rotation={[0.0, 0.3, 0]} />
-    </group>
-  )
-}
+//*/
 
 export function GameView() {
   return (

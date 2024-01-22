@@ -65,8 +65,12 @@ const cardColorSelector = selectorFamily<{ color: string; luma: number }, string
     if (identity === undefined) {
       debugger
     }
-    const id = hash(identity) % COLORS.length
-    const color = COLORS[id]
+    // convert identity to character code
+    let id = parseInt(identity.toLowerCase(), 36)
+    if (isNaN(id)) {
+      id = Math.floor(Math.random() * COLORS.length)
+    }
+    const color = COLORS[id % COLORS.length]
     return color
   },
 })
@@ -100,14 +104,17 @@ const cardActive = atom<string | false>({
   default: false,
 })
 
+export const useCardActive = () => useRecoilState(cardActive)
 export const useCardActiveValue = () => useRecoilValue(cardActive)
 export const useSetCardActive = () => useSetRecoilState(cardActive)
 
-const tableParams = atom<{ size: number; position: Vec3 }>({
+const tableParams = atom<{ size: number; position: Vec3; cardSize: number; subdivisions: number }>({
   key: 'tableParams',
   default: {
     size: 1,
     position: [0, 0, 0],
+    cardSize: 0.15,
+    subdivisions: 20,
   },
 })
 
@@ -141,13 +148,14 @@ export const useAddTableCard = () => {
   )
 }
 
-export const useTableCardParams = (identity: string) => useRecoilValue(tableCardParams(identity))
+export const useTableCardParams = (identity: string) => useRecoilState(tableCardParams(identity))
 
 export const useAddHandCard = () => {
   return useRecoilCallback(
     ({ set }) =>
       (identity: string) => {
         set(handCardsList, (list) => {
+          console.log('HAND LIST', list)
           // for some reason sometimes we get duplicates
           if (list.includes(identity)) {
             return list
@@ -155,7 +163,11 @@ export const useAddHandCard = () => {
           const newList = [...list, identity]
           return newList
         })
-        set(tableCardList, (list) => list.filter((card) => card !== identity))
+        set(tableCardList, (list) => {
+          const res = list.filter((card) => card !== identity)
+          console.log('TABLE LIST', res)
+          return res
+        })
       },
     [],
   )

@@ -41,6 +41,10 @@ const Layout = ({ children }) => {
               eventPrefix='client'
             />
           </div>
+          <div
+            className='pointer-events-none absolute inset-x-0 top-0 mx-auto h-full w-full max-w-screen-lg'
+            id='Html-portal'
+          ></div>
           <div className='fixed left-0 top-0 z-10 '>
             <NavBar />
           </div>

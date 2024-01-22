@@ -1,9 +1,10 @@
 import { atom, useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
 
-const cameraReset = atom<number>({
-  key: 'cameraReset',
-  default: 0,
+const camControls = atom<'reset' | 'enabled' | 'disabled'>({
+  key: 'camControls',
+  default: 'disabled',
 })
 
-export const useCameraResetValue = () => useRecoilValue(cameraReset)
-export const useCameraReset = () => useRecoilState(cameraReset)
+export const useCamControlsValue = () => useRecoilValue(camControls)
+export const useCamControls = () => useRecoilState(camControls)
+export const useSetCamControls = () => useSetRecoilState(camControls)

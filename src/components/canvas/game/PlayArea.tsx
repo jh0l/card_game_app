@@ -1,15 +1,17 @@
 import { ThreeEvent, useFrame, useThree } from '@react-three/fiber'
-import { useDrag, useGesture } from '@use-gesture/react'
+import { useDrag } from '@use-gesture/react'
 import { useSpring, a } from '@react-spring/three'
-import { useEffect, useRef, useState } from 'react'
-import { useTexture, Text, PresentationControls, MapControls } from '@react-three/drei'
-import { mapLinear, throttler } from '@/src/lib/utils'
+import { MouseEventHandler, Ref, useEffect, useMemo, useRef, useState } from 'react'
+import { useTexture, Text, MapControls, Html, Hud, PerspectiveCamera } from '@react-three/drei'
+import { crop, mapLinear, throttler } from '@/src/lib/utils'
 import * as THREE from 'three'
-import { atomFamily, useRecoilValue, useSetRecoilState } from 'recoil'
+import * as THREELIB from 'three-stdlib'
+import { atom, atomFamily, useRecoilValue, useSetRecoilState } from 'recoil'
 import {
   MAX_VISIBLE_CARDS,
   useAddHandCard,
   useAddTableCard,
+  useCardActive,
   useCardActiveValue,
   useCardColor,
   useCardRange,
@@ -17,17 +19,26 @@ import {
   useHandCardsList,
   useHandCardsListValue,
   useSetCardActive,
+  useSetHandCardsList,
   useSetTableParams,
   useTableCardListValue,
   useTableCardParams,
   useTableParamsValue,
 } from '@/src/state/cards'
 import { PosRot, Vec3 } from '@/src/lib/types'
-import { useCameraReset, useCameraResetValue } from '@/src/state/scene'
+import { useCamControls, useCamControlsValue, useSetCamControls } from '@/src/state/scene'
+import { Button } from '../../ui/button'
+import { Common } from '../View'
+import HtmlPortal from '@/src/helpers/components/HtmlPortal'
+
+const DEPTH = {
+  TABLE_CARDS: 10,
+  HAND_CARDS: 1000,
+}
 
 const MASS = 1.3
 const FRICTION = 77
-const CARD_THICK = 0.1
+const CARD_THICK = 0.05
 const FIELD_LINE = -1.2
 const TEXT = 0.2
 
@@ -63,11 +74,14 @@ const liveDataAtom = atomFamily<string | null, string>({
   default: null,
 })
 
-function LiveText({ index }: { index: string }) {
+function LiveText({ index, renderOrder: depth }: { index: string; renderOrder: number }) {
   const data = useRecoilValue(liveDataAtom(index))
   const isDark = true
   return (
     <Text
+      renderOrder={depth}
+      material-depthTest={false}
+      material-depthWrite={false}
       font='Rubik-Regular.ttf'
       scale={[TEXT / 2, TEXT / 2, TEXT / 2]}
       color={isDark ? 'white' : 'black'}
@@ -80,17 +94,34 @@ function LiveText({ index }: { index: string }) {
   )
 }
 
-const scrollRangeThrottle = throttler(500, 500)
+const setDataThrottle = throttler(200, 0)
+
+function snapCardToTable(
+  position: Vec3,
+  tableParams: { size: number; position: Vec3; cardSize: number; subdivisions: number },
+) {
+  // snap cardPosition to table grid based on size and position, and cardSize
+  // card ratio height to width ratio is 1.5/1, table h/w ratio is 1/1
+  // card is cardSize/size of table size, card should snap to table
+  const [x, y, z] = position
+  const { size, cardSize, subdivisions } = tableParams
+  const increment = size / (subdivisions * 10)
+  const x_ = Math.round(x / increment) * increment
+  const y_ = Math.round(y / increment) * increment
+  // const z_ = Math.round(z / increment) * increment
+  return [x_, y_, z] as Vec3
+}
 
 let reInitDrag = false
 function Card({ i, identity }: { i: number; identity: string }) {
+  const setCamControls = useSetCamControls()
   const addTableCard = useAddTableCard()
   const tableParams = useTableParamsValue()
-  const setActive = useSetCardActive()
+  const setCardActive = useSetCardActive()
   const { viewport } = useThree()
   const texture = useTexture(`img/cards/melty-boy0-q25.png`)
-  const [cardRange, setCardRange] = useCardRange()
-  const [cardsList, setCardList] = useHandCardsList()
+  const cardRange = useCardRangeValue()
+  const setCardList = useSetHandCardsList()
   const setData = useSetRecoilState(liveDataAtom(identity))
   const [recalculate, setRecal] = useState(0)
   const [spring, setSpring] = useSpring(() => ({
@@ -116,8 +147,9 @@ function Card({ i, identity }: { i: number; identity: string }) {
     // get card's current position
     event.stopPropagation()
     if (first || reInitDrag) {
+      setCamControls('reset')
       reInitDrag = false
-      setActive(identity)
+      setCardActive(identity)
       SELECTED_CARD_STATE.active = {
         cardIndex: i,
         offset: zVector3,
@@ -127,16 +159,19 @@ function Card({ i, identity }: { i: number; identity: string }) {
       SELF.current.rotation = flippingRotation
     }
     if (last && SELECTED_CARD_STATE.active) {
-      setActive(false)
+      setCardActive(false)
 
       // if card is on field, add to table
       const { offset } = SELECTED_CARD_STATE.active
       // if on field and within bounds of table
       const onTable = offset.y > FIELD_LINE && abs(offset.x - tableParams.position[0]) < tableParams.size / 2
       if (onTable) {
+        const cardPosition = spring.position.get()
+
+        const position = snapCardToTable(cardPosition, tableParams)
         addTableCard(
           {
-            position: spring.position.get(),
+            position,
             rotation: [0, 0, 0],
           },
           identity,
@@ -168,18 +203,24 @@ function Card({ i, identity }: { i: number; identity: string }) {
         if (!SELECTED_CARD_STATE.active) return
 
         const state_y = SELECTED_CARD_STATE.active.offset.y
-        const onField = state_y > FIELD_LINE
+        const onTable = state_y > FIELD_LINE
         let x_ = SELECTED_CARD_STATE.active.offset.x * 0.9
         const pos = spring.position.get()
         // sometimes the card will get stuck at 0,0,0 - ignore this
         const isZeroBug = pos[1].toFixed(2) === '0.00' && state_y.toFixed(2) === '0.00'
         const [_x, _y] = pos.map((x) => (x as any).toFixed(1))
-        setData(`${_x}\n${_y}`)
-        const zoom = onField ? tableParams.size * 0.1 : mapLinear(state_y, -2.7, FIELD_LINE - 0.2, 1, 2)
-        let y_ = state_y + 1.75 + zoom * 0.9 + (onField ? 0.4 : 0)
+        setDataThrottle && setData(`${_x}\n${_y}`)
+        const zoom = onTable ? tableParams.cardSize : mapLinear(state_y, -2.7, FIELD_LINE - 0.2, 1, 2)
+        let y_ = state_y + 1.75 + zoom * 0.9 + (onTable ? 0.4 : 0)
         const z = CARD_THICK * SELF.positionsIndex
         const scale = [zoom, zoom, zoom] as Vec3
-        const position = [x_, y_, onField ? -2.6 : -2 + z] as Vec3
+        let position = [x_, y_, onTable ? -3 : -2 + z] as Vec3
+        if (onTable) {
+          // snap cardPosition to table grid based on tableParams.size and tableParams.position
+          // card ration is 1.5/1, table ratio is 1/1
+          // card is 1/10th of table size, top left of card should snap to grid of 20x20 on table
+          position = snapCardToTable(position, tableParams)
+        }
         if (!isSame(SELF.current.position, position) && !isZeroBug) {
           setSpring.start({
             position,
@@ -192,7 +233,7 @@ function Card({ i, identity }: { i: number; identity: string }) {
             },
           })
         }
-        if (onField && !isSame(SELF.current.rotation, zVec)) {
+        if (onTable && !isSame(SELF.current.rotation, zVec)) {
           setSpring.start({
             rotation: zVec,
             config: {
@@ -236,58 +277,6 @@ function Card({ i, identity }: { i: number; identity: string }) {
             targetCard.positionsIndex = temp
           }
         }
-        // // if card.x > last card, activate throttle
-        // if (
-        //   (SELF.positionsIndex === POSITIONS.length - 1 &&
-        //     spring_x > POSITIONS[POSITIONS.length - 1].position[0] + 0.5) ||
-        //   (SELF.positionsIndex === 0 && spring_x < POSITIONS[0].position[0] - 0.5)
-        // ) {
-        //   // if throttle positive, increment cardRange
-        //   if (scrollRangeThrottle()) {
-        //     const direction = SELF.positionsIndex === 0 ? -1 : 1
-        //     // first reset all cards as if their positions were finalised
-
-        //     setCardList((list) => {
-        //       // apply the new card order in CARD_STATE to the cardsList
-        //       const newList = [...list]
-        //       const visible = newList.slice(cardRange[0], cardRange[1])
-        //       for (let i = 0; i < CARD_STATE.length; i++) {
-        //         const newIndex = CARD_STATE[i].positionsIndex + cardRange[0]
-        //         newList[newIndex] = visible[i]
-        //       }
-        //       if (direction === 1) {
-        //         // swap the current card with the last card
-        //         const temp = newList[newList.length - 1]
-        //         newList[newList.length - 1] = newList[newList.length - 2]
-        //         newList[newList.length - 2] = temp
-        //       } else {
-        //         // swap the current card with the first card
-        //         const temp = newList[0]
-        //         newList[0] = newList[1]
-        //         newList[1] = temp
-        //       }
-        //       return newList
-        //     })
-
-        //     setTimeout(() => {
-        //       setRecal((x) => x + 1)
-        //       setCardRange((x) => {
-        //         if (direction === 1) {
-        //           if (x[1] < cardsList.length) {
-        //             return [x[0] + 1, x[1] + 1]
-        //           }
-        //         } else if (x[0] > 0) {
-        //           return [x[0] - 1, x[1] - 1]
-        //         }
-        //         return x
-        //       })
-        //       reInitDrag = true
-        //       for (let i = 0; i < CARD_STATE.length; i++) {
-        //         CARD_STATE[i].positionsIndex = i
-        //       }
-        //     }, 16)
-        //   }
-        // }
       }
       const rotation = [0, -x / 30, 0] as Vec3
       if (!isSame(SELF.current.rotation, rotation) && active.offset.y < FIELD_LINE) {
@@ -328,10 +317,20 @@ function Card({ i, identity }: { i: number; identity: string }) {
   const bindType = bind()
   return (
     <>
-      <a.mesh {...spring} {...bindType}>
+      <a.mesh {...spring} {...bindType} renderOrder={DEPTH.HAND_CARDS * i}>
         <planeGeometry args={[1, 1.5, 1, 1]} />
-        <meshStandardMaterial map={texture} bumpMap={texture} transparent color={color} />
+        <meshStandardMaterial
+          map={texture}
+          bumpMap={texture}
+          transparent
+          color={color}
+          depthTest={false}
+          depthWrite={false}
+        />
         <Text
+          material-depthTest={false}
+          material-depthWrite={false}
+          renderOrder={DEPTH.HAND_CARDS * i + 1}
           font='Rubik-Regular.ttf'
           scale={[TEXT, TEXT, TEXT]}
           color={isDark ? 'white' : 'black'}
@@ -341,8 +340,11 @@ function Card({ i, identity }: { i: number; identity: string }) {
         >
           {label}
         </Text>
-        <LiveText index={identity} />
+        <LiveText index={identity} renderOrder={DEPTH.HAND_CARDS * i + 1} />
         <Text
+          material-depthTest={false}
+          material-depthWrite={false}
+          renderOrder={DEPTH.HAND_CARDS * i + 1}
           font='Rubik-Regular.ttf'
           scale={[TEXT, TEXT, TEXT]}
           color={isDark ? 'white' : 'black'}
@@ -353,6 +355,9 @@ function Card({ i, identity }: { i: number; identity: string }) {
           {label}
         </Text>
         <Text
+          material-depthTest={false}
+          material-depthWrite={false}
+          renderOrder={DEPTH.HAND_CARDS * i + 1}
           font='Rubik-Regular.ttf'
           scale={[TEXT / 3.2, TEXT / 3.2, TEXT / 3.2]}
           color={isDark ? 'white' : 'black'}
@@ -372,6 +377,9 @@ function Card({ i, identity }: { i: number; identity: string }) {
 function Hand() {
   const cardRange = useCardRangeValue()
   const cardsList = useHandCardsListValue()
+  if (cardsList.indexOf(undefined) !== -1) {
+    debugger
+  }
   return (
     <>
       {cardsList.slice(cardRange[0], cardRange[1]).map((identity, i) => (
@@ -381,12 +389,25 @@ function Hand() {
   )
 }
 
-function TableCard({ identity }: { identity: string }) {
+function offset(pos: Vec3, axis: 'x' | 'y' | 'z', i: number) {
+  const offset = 0.0075
+  const _pos = [...pos] as Vec3
+  _pos[0] += axis === 'x' ? offset * i : 0
+  _pos[1] += axis === 'y' ? offset * i : 0
+  _pos[2] += axis === 'z' ? offset * i : 0
+  return _pos
+}
+
+function TableCard({ identity, i }: { identity: string; i: number }) {
   const addHandCard = useAddHandCard()
-  const { size } = useTableParamsValue()
+  const [cardActive, setCardActive] = useCardActive()
+  const setCamControls = useSetCamControls()
+  const [locked, setLocked] = useState(true)
+  const { size, position, cardSize } = useTableParamsValue()
   const texture = useTexture(`img/cards/melty-boy0-q25.png`)
-  const params = useTableCardParams(identity)
-  const cardSize = size * 0.1
+  const [params, setParams] = useTableCardParams(identity)
+  const [unmounting, setUnmounting] = useState(false)
+  const zoomSize = size * 0.4
   const [spring, setSpring] = useSpring(() => ({
     scale: [cardSize, cardSize, cardSize] as Vec3,
     position: params.position,
@@ -394,23 +415,87 @@ function TableCard({ identity }: { identity: string }) {
     config: { mass: MASS, friction: FRICTION, tension: 2000 },
   }))
   useEffect(() => {
-    setSpring.start({
-      position: params.position,
-      rotation: params.rotation,
-    })
-  }, [params.position, params.rotation, setSpring])
+    if (cardActive !== identity) {
+      setSpring.start({
+        position: params.position,
+        rotation: params.rotation,
+        scale: [cardSize, cardSize, cardSize] as Vec3,
+      })
+    } else {
+      setCamControls('reset')
+      const [x, y, z] = position
+      setSpring.start({
+        position: [x, y, z + 1],
+        scale: [zoomSize, zoomSize, zoomSize],
+        rotation: [0, 0, 0],
+      })
+    }
+  }, [
+    params.position,
+    params.rotation,
+    setSpring,
+    i,
+    cardActive,
+    identity,
+    zoomSize,
+    cardSize,
+    position,
+    setCamControls,
+  ])
   const { color } = useCardColor(identity)
   const isDark = true // luma < 0.2
   const label = identity
-  const onClick = (event: ThreeEvent<MouseEvent>) => {
+  const onClick = async (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation()
-    addHandCard(identity)
+    if (locked && cardActive !== identity) {
+      setCardActive(identity)
+    }
   }
+  const pickup: MouseEventHandler<HTMLButtonElement> = (e) => {
+    e.stopPropagation()
+    setUnmounting(true)
+    const posIndex = Math.floor(MAX_VISIBLE_CARDS - 1)
+    const position = POSITIONS[posIndex].position as Vec3
+
+    setSpring.start({
+      position,
+      scale: [0.5, 0.5, 0.5],
+      // rotation: [0, 1, 0],
+
+      onResolve: () => {
+        setCardActive(false)
+        // prevent anymore spring updates
+        addHandCard(identity)
+        setParams({
+          position,
+          rotation: [0, 0, 0],
+        })
+      },
+    })
+  }
+  const meshDepth = DEPTH.TABLE_CARDS * i + (identity === cardActive ? 1000 : 0)
+  const textDepth = meshDepth + 1
   return (
-    <a.mesh {...(spring as any)} onClick={onClick}>
+    <a.mesh {...(spring as any)} onClick={onClick} renderOrder={meshDepth}>
+      <group position={[0, -size * 0.15, 0]}>
+        {cardActive === identity && !unmounting && (
+          <HtmlPortal>
+            <div className='pointer-events-auto flex translate-y-full gap-2 rounded bg-white/50 p-2 shadow-lg'>
+              <Button onClick={() => setCardActive(false)} variant='outline'>
+                _
+              </Button>
+              <Button variant='secondary' onClick={pickup}>
+                PICKUP
+              </Button>
+            </div>
+          </HtmlPortal>
+        )}
+      </group>
       <planeGeometry args={[1, 1.5, 1, 1]} />
-      <meshStandardMaterial map={texture} bumpMap={texture} transparent color={color} />
       <Text
+        renderOrder={textDepth}
+        material-depthTest={false}
+        material-depthWrite={false}
         font='Rubik-Regular.ttf'
         scale={[TEXT, TEXT, TEXT]}
         color={isDark ? 'white' : 'black'}
@@ -420,8 +505,11 @@ function TableCard({ identity }: { identity: string }) {
       >
         {label}
       </Text>
-      <LiveText index={identity} />
+      <LiveText index={identity} renderOrder={textDepth} />
       <Text
+        renderOrder={textDepth}
+        material-depthTest={false}
+        material-depthWrite={false}
         font='Rubik-Regular.ttf'
         scale={[TEXT, TEXT, TEXT]}
         color={isDark ? 'white' : 'black'}
@@ -432,6 +520,9 @@ function TableCard({ identity }: { identity: string }) {
         {label}
       </Text>
       <Text
+        renderOrder={textDepth}
+        material-depthTest={false}
+        material-depthWrite={false}
         font='Rubik-Regular.ttf'
         scale={[TEXT / 3.2, TEXT / 3.2, TEXT / 3.2]}
         color={isDark ? 'white' : 'black'}
@@ -443,33 +534,42 @@ function TableCard({ identity }: { identity: string }) {
       >
         Lorem Ipsum Lorem Ipsum
       </Text>
+      <meshStandardMaterial
+        map={texture}
+        bumpMap={texture}
+        transparent
+        color={color}
+        depthTest={false}
+        depthWrite={false}
+      />
     </a.mesh>
   )
 }
 
 function CameraControls() {
-  const [cameraReset, setCameraReset] = useCameraReset()
-  const camera = useThree((three) => three.camera)
-  // support panning, zooming
   const cardActive = useCardActiveValue()
+  const [camControls, setCamControls] = useCamControls()
+  const controlRef = useRef<THREELIB.MapControls>()
+  const camera = useThree((three) => three.camera)
+  const table = useTableParamsValue()
   useEffect(() => {
     // modify the PresentationControls props to pan on the XY plane instead of the XZ plane
     camera.up.set(0, 0, 1)
   }, [camera.up])
   useEffect(() => {
-    if (cameraReset === -1) {
-      camera.position.set(0, 0, 7)
-      camera.rotation.set(0, 0, 0)
-      setCameraReset(0)
+    if (camControls === 'reset') {
+      controlRef.current?.reset()
+      setCamControls('disabled')
     }
-  }, [cameraReset, camera.position, camera.rotation, setCameraReset])
-  const onChange = () => {
-    console.log(cameraReset)
-    if (cameraReset === 0) {
-      setCameraReset(1)
-    }
-  }
-  return <MapControls enabled={cardActive === false} />
+  }, [camControls, setCamControls])
+  return (
+    <MapControls
+      ref={controlRef}
+      zoomSpeed={2}
+      enabled={camControls === 'enabled' && !cardActive}
+      enableRotate={false}
+    />
+  )
 }
 
 function Table() {
@@ -478,36 +578,43 @@ function Table() {
   const planeTexture = useTexture('./uv_grid.jpg')
   const meshBasicMaterial = useRef<THREE.MeshBasicMaterial>(null)
   /* stretch uv map of texture vertically so image repeats twice */
+  const subdivisions = 1.7
   useEffect(() => {
     if (meshBasicMaterial.current) {
       // repeat texture
       meshBasicMaterial.current.map.wrapS = THREE.RepeatWrapping
       meshBasicMaterial.current.map.wrapT = THREE.RepeatWrapping
       // stretch texture
-      meshBasicMaterial.current.map.repeat.set(2, 2)
+      meshBasicMaterial.current.map.repeat.set(subdivisions, subdivisions)
       meshBasicMaterial.current.map.needsUpdate = true
     }
   }, [])
   const setParams = useSetTableParams()
   // set so table reaches edges of screen if screen long enough
-  const size = Math.min(viewport.width * 1.3, viewport.height * 0.84)
+  // max W, H - 5.429 5.095
+  const width = crop(viewport.width, 2, 5.429)
+  const height = crop(viewport.height, 2, 5.095)
+  const size = Math.min(width * 1.3, height * 0.84)
+  const position = useMemo(() => [0, (height * 1.85) / 3, -3] as Vec3, [height])
   useEffect(() => {
     setParams({
       size,
-      position: [0, (viewport.height * 1.9) / 3, -3],
+      position,
+      cardSize: size / (17 / 2),
+      subdivisions,
     })
-  }, [size, setParams, viewport.height])
+  }, [size, setParams, position])
+
   return (
-    <group position={[0, (viewport.height * 1.9) / 3, -3]}>
-      <CameraControls />
-      <mesh>
-        <planeGeometry args={[size, size, 1, 2]} />
+    <group>
+      <mesh position={position as any}>
+        <planeGeometry args={[size, size, 1, 1]} />
         {/* stretch uv map of texture vertically so image repeats twice */}
         <meshBasicMaterial map={planeTexture} ref={meshBasicMaterial} />
       </mesh>
-      <group position={[0, -(viewport.height * 1.9) / 3, 3]}>
-        {tableCardsList.map((card) => (
-          <TableCard identity={card} key={card} />
+      <group>
+        {tableCardsList.map((card, i) => (
+          <TableCard identity={card} key={card} i={i} />
         ))}
       </group>
     </group>
@@ -535,26 +642,33 @@ export default function PlayArea() {
     }
   })
   const scale = 3.39
+  const width = Math.min(viewport.width, 5.429)
+  const height = Math.min(viewport.height, 5.095)
   return (
     <>
       {/* <Html className='pointer-events-none w-96 font-mono'></Html> */}
-      <group position={[0, -1.6, 0]} rotation={[-0.1, 0, 0]}>
-        <Hand />
-
-        <mesh ref={raycastBoard} position={[0, viewport.height / 3, -3]}>
-          <planeGeometry args={[viewport.width * 2, viewport.height * 2, 1, 1]} />
+      <CameraControls />
+      <group position={[0, -2, 0]} rotation={[0, 0, 0]}>
+        <Table />
+        <Hud>
+          <Common />
+          <group position={[0, -2, 0]} rotation={[0, 0, 0]}>
+            <Hand />
+          </group>
+        </Hud>
+        <mesh ref={raycastBoard} position={[0, height / 3, -3]}>
+          <planeGeometry args={[width * 2, height * 2, 1, 1]} />
           {/* transparent material */}
           {/* <meshBasicMaterial map={planeTexture} color='red' opacity={0.5} transparent /> */}
           <meshBasicMaterial opacity={0} transparent />
         </mesh>
         <mesh position={[0, 4, -10]}>
-          <planeGeometry args={[viewport.width * scale, viewport.height * scale, 1, 1]} />
+          <planeGeometry args={[width * scale, height * scale, 1, 1]} />
           {/* transparent material */}
           <meshBasicMaterial map={planeTexture} color='blue' opacity={0.4} transparent />
           {/* <meshBasicMaterial map={planeTexture} color='red' /> */}
           {/* <meshBasicMaterial opacity={0} transparent /> */}
         </mesh>
-        <Table />
       </group>
     </>
   )
