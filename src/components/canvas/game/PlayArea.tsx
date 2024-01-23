@@ -26,9 +26,10 @@ import {
   useVisibleCards,
 } from '@/src/state/cards'
 import { PosRot, Vec3 } from '@/src/lib/types'
-import { useCamControls, useSetCamControls } from '@/src/state/scene'
+import { useCamControls, useDontMoveCamera, useSetCamControls, useSetDontMoveCamera } from '@/src/state/scene'
 import { Button } from '../../ui/button'
 import HtmlPortal from '@/src/helpers/components/HtmlPortal'
+import HandIcon from '@/src/lib/icons/HandIcon'
 
 const DEPTH = {
   TABLE_CARDS: 10,
@@ -261,6 +262,7 @@ function Card({ i, identity }: { i: number; identity: string }) {
     const target = POSITIONS[SELF.positionsIndex] || zPositions
     const { active } = SELECTED_CARD_STATE
     const [x, y, z] = spring.position.get()
+    if (active && active.cardIndex === -1) return
     if (active && active.cardIndex === i) {
       const spring_x = x
       if (active.offset.y < FIELD_LINE) {
@@ -395,10 +397,13 @@ function Hand() {
 function TableCard({ identity, i }: { identity: string; i: number }) {
   const addHandCard = useAddHandCard()
   const [cardActive, setCardActive] = useCardActive()
-  const setCamControls = useSetCamControls()
-  const [locked, setLocked] = useState(true)
-  const { size, position, cardSize } = useTableParamsValue()
+  const setDontMoveCamera = useSetDontMoveCamera()
+
+  const [depthOffset, setDepthOffset] = useState(0)
+  const tableParams = useTableParamsValue()
+  const { size, position, cardSize } = tableParams
   const texture = useTexture(`img/cards/melty-boy0-q25.png`)
+  const handTex = useTexture(`img/handwhite.png`)
   const [params, setParams] = useTableCardParams(identity)
   const [unmounting, setUnmounting] = useState(false)
   const zoomSize = size * 0.4
@@ -408,45 +413,115 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
     rotation: params.rotation,
     config: { mass: MASS, friction: FRICTION, tension: 2000 },
   }))
+  const [dragging, setDragging] = useState(false)
+  const MAX_DIST = 50
+  const moverBind = useDrag(({ event, first, last, xy, initial }) => {
+    event.stopPropagation()
+    if (first) {
+      SELECTED_CARD_STATE.active = {
+        cardIndex: -1,
+        offset: zVector3,
+        closest: -1,
+      }
+    }
+    let pos
+    if (SELECTED_CARD_STATE.active) {
+      const update = () => {
+        if (!SELECTED_CARD_STATE.active) return
+        const distClamped = Math.sqrt((xy[0] - initial[0]) ** 2 + (xy[1] - initial[1]) ** 2)
+        let position = zVec
+        if (distClamped < 10) {
+          position = params.position
+        } else {
+          const { offset } = SELECTED_CARD_STATE.active
+          const [x, _y] = offset.toArray()
+          // offset y by
+          const y = _y + 2.85
+          position = snapCardToTable([x, y, params.position[2]], tableParams)
+        }
+        setSpring.start({ position })
+        pos = position
+      }
+      if (first) {
+        SELECTED_CARD_STATE.active.first = update
+      } else {
+        update()
+        SELECTED_CARD_STATE.active.first = undefined
+      }
+      if (last) {
+        SELECTED_CARD_STATE.active = false
+        pos && setParams((x) => ({ ...x, position: pos }))
+      }
+    }
+  })
+  const bind = useDrag(
+    ({ event, first, last, xy, initial }) => {
+      // if (xy[0] > 0 && xy[1] > 0) {
+      //   debugger
+      // }
+      if (first) {
+        setDontMoveCamera(true)
+        setDragging(true)
+        setDepthOffset(10000)
+      }
+      if (last) {
+        setDontMoveCamera(false)
+        setSpring.start({
+          position: params.position,
+          rotation: params.rotation,
+          scale: [cardSize, cardSize, cardSize],
+          onResolve: () => {
+            setDragging(false)
+            setDepthOffset(0)
+          },
+        })
+      } else {
+        const OVER_DIST = MAX_DIST * 1.1
+        const distClamped = Math.sqrt((xy[0] - initial[0]) ** 2 + (xy[1] - initial[1]) ** 2)
+        //const distClamped = Math.max(Math.min(distance, 50), 0)
+        // linear map x coord between params.position[0] and position[0]
+        const x = mapLinear(distClamped, 0, OVER_DIST, params.position[0], position[0])
+        const y = mapLinear(distClamped, 0, OVER_DIST, params.position[1], position[1] - 0.25)
+        const z = mapLinear(distClamped, 0, OVER_DIST, params.position[2], position[2] + 2)
+        const scale = mapLinear(distClamped, 0, OVER_DIST, cardSize, zoomSize)
+        setSpring.start({
+          position: [x, y, z],
+          scale: [scale, scale, scale],
+        })
+      }
+    },
+    { bounds: { left: -MAX_DIST, right: MAX_DIST, top: -MAX_DIST, bottom: MAX_DIST }, rubberband: true },
+  )
   useEffect(() => {
-    if (cardActive !== identity) {
+    if (cardActive !== identity && !dragging) {
       setSpring.start({
         position: params.position,
         rotation: params.rotation,
         scale: [cardSize, cardSize, cardSize] as Vec3,
       })
     } else {
-      const [x, y, z] = position
-      setSpring.start({
-        position: [x, y, z + 1],
-        scale: [zoomSize, zoomSize, zoomSize],
-        rotation: [0, 0, 0],
-      })
+      // const [x, y, z] = position
+      // setSpring.start({
+      //   position: [x, y, z + 1],
+      //   scale: [zoomSize, zoomSize, zoomSize],
+      //   rotation: [0, 0, 0],
+      // })
     }
-  }, [
-    params.position,
-    params.rotation,
-    setSpring,
-    i,
-    cardActive,
-    identity,
-    zoomSize,
-    cardSize,
-    position,
-    setCamControls,
-  ])
+  }, [params.position, params.rotation, setSpring, cardActive, identity, cardSize, dragging])
   const visibleCards = useVisibleCards()
   const { color } = useCardColor(identity)
   const isDark = true // luma < 0.2
   const label = identity
-  const meshDepth = DEPTH.TABLE_CARDS * (i + 1) + (identity === cardActive ? 1000 : 0)
+  const meshDepth = DEPTH.TABLE_CARDS * (i + 1) * (identity === cardActive ? 1000 : 1) + depthOffset
   const onClick = async (event: ThreeEvent<MouseEvent>) => {
     // check that this is the object with the highest renderOrder
     let max = event.intersections.reduce((max, v) => (max.object.renderOrder > v.object.renderOrder ? max : v))
     if (max.object.renderOrder !== meshDepth) return
     event.stopPropagation()
-    if (locked && cardActive !== identity) {
+    if (cardActive !== identity) {
       setCardActive(identity)
+    } else {
+      setCardActive(false)
     }
   }
   const pickup: MouseEventHandler<HTMLButtonElement> = (e) => {
@@ -471,79 +546,116 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
       },
     })
   }
+  // @ts-ignore
+  const bindType = bind()
+  // @ts-ignore
+  const moverBindType = moverBind()
   const textDepth = meshDepth + 1
+  const showControls = cardActive === identity && !unmounting
   return (
-    <a.mesh {...(spring as any)} onClick={onClick} renderOrder={meshDepth}>
-      <group position={[0, -size * 0.15, 0]}>
-        {cardActive === identity && !unmounting && (
-          <HtmlPortal>
-            <div className='pointer-events-auto flex translate-y-full gap-2 rounded bg-white/50 p-2 shadow-lg'>
-              <Button onClick={() => setCardActive(false)} variant='outline'>
-                _
-              </Button>
-              <Button variant='secondary' onClick={pickup}>
-                PICKUP
-              </Button>
-            </div>
-          </HtmlPortal>
+    <>
+      <a.mesh {...(spring as any)} {...bindType} onClick={onClick} renderOrder={meshDepth}>
+        <group position={[0, size * 0.15, 0]}>
+          {showControls && (
+            <HtmlPortal>
+              <div className='pointer-events-auto flex -translate-y-full gap-2 rounded bg-white/50 p-2 shadow-lg'>
+                <Button variant='secondary' onClick={pickup}>
+                  PICKUP
+                </Button>
+              </div>
+            </HtmlPortal>
+          )}
+        </group>
+        {showControls && !dragging && (
+          <a.mesh renderOrder={meshDepth * 10} {...moverBindType} position={[0, -1.75, 0]} name='grabby'>
+            <planeGeometry args={[0.75, 0.75, 1, 1]} />
+            <meshStandardMaterial
+              map={handTex}
+              bumpMap={handTex}
+              transparent
+              color='white'
+              depthTest={false}
+              depthWrite={false}
+            />
+            <a.mesh renderOrder={meshDepth * 10}>
+              <circleGeometry args={[0.65]} />
+              <meshBasicMaterial color='black' transparent opacity={0.75} depthTest={false} depthWrite={false} />
+            </a.mesh>
+          </a.mesh>
         )}
-      </group>
-      <planeGeometry args={[1, 1.5, 1, 1]} />
-      <Text
-        renderOrder={textDepth}
-        material-depthTest={false}
-        material-depthWrite={false}
-        font='Rubik-Regular.ttf'
-        scale={[TEXT, TEXT, TEXT]}
-        color={isDark ? 'white' : 'black'}
-        anchorX='left'
-        anchorY='top'
-        position={[-1 / 2.2, 1.5 / 2.2, CARD_THICK / 1.9]}
-      >
-        {label}
-      </Text>
-      <LiveText index={identity} renderOrder={textDepth} />
-      <Text
-        renderOrder={textDepth}
-        material-depthTest={false}
-        material-depthWrite={false}
-        font='Rubik-Regular.ttf'
-        scale={[TEXT, TEXT, TEXT]}
-        color={isDark ? 'white' : 'black'}
-        anchorX='right'
-        anchorY='bottom-baseline'
-        position={[-1 / -2.2, 1.5 / -2.2, CARD_THICK / 1.9]}
-      >
-        {label}
-      </Text>
-      <Text
-        renderOrder={textDepth}
-        material-depthTest={false}
-        material-depthWrite={false}
-        font='Rubik-Regular.ttf'
-        scale={[TEXT / 3.2, TEXT / 3.2, TEXT / 3.2]}
-        color={isDark ? 'white' : 'black'}
-        outlineWidth={0.005}
-        outlineColor={!isDark ? 'white' : 'black'}
-        anchorX='center'
-        anchorY='top-baseline'
-        position={[0, -0.28, CARD_THICK / 1.9]}
-      >
-        Lorem Ipsum Lorem Ipsum
-      </Text>
-      <meshStandardMaterial
-        map={texture}
-        bumpMap={texture}
-        transparent
-        color={color}
-        depthTest={false}
-        depthWrite={false}
-      />
-    </a.mesh>
+        <planeGeometry args={[1, 1.5, 1, 1]} />
+        <Text
+          renderOrder={textDepth}
+          material-depthTest={false}
+          material-depthWrite={false}
+          font='Rubik-Regular.ttf'
+          scale={[TEXT, TEXT, TEXT]}
+          color={isDark ? 'white' : 'black'}
+          anchorX='left'
+          anchorY='top'
+          position={[-1 / 2.2, 1.5 / 2.2, CARD_THICK / 1.9]}
+        >
+          {label}
+        </Text>
+        <LiveText index={identity} renderOrder={textDepth} />
+        <Text
+          renderOrder={textDepth}
+          material-depthTest={false}
+          material-depthWrite={false}
+          font='Rubik-Regular.ttf'
+          scale={[TEXT, TEXT, TEXT]}
+          color={isDark ? 'white' : 'black'}
+          anchorX='right'
+          anchorY='bottom-baseline'
+          position={[-1 / -2.2, 1.5 / -2.2, CARD_THICK / 1.9]}
+        >
+          {label}
+        </Text>
+        <Text
+          renderOrder={textDepth}
+          material-depthTest={false}
+          material-depthWrite={false}
+          font='Rubik-Regular.ttf'
+          scale={[TEXT / 3.2, TEXT / 3.2, TEXT / 3.2]}
+          color={isDark ? 'white' : 'black'}
+          outlineWidth={0.005}
+          outlineColor={!isDark ? 'white' : 'black'}
+          anchorX='center'
+          anchorY='top-baseline'
+          position={[0, -0.28, CARD_THICK / 1.9]}
+        >
+          Lorem Ipsum Lorem Ipsum
+        </Text>
+        <Text
+          renderOrder={textDepth}
+          material-depthTest={false}
+          material-depthWrite={false}
+          font='Rubik-Regular.ttf'
+          scale={[TEXT, TEXT, TEXT]}
+          color={isDark ? 'white' : 'black'}
+          outlineWidth={0.005}
+          outlineColor={!isDark ? 'white' : 'black'}
+          anchorX='center'
+          anchorY='top-baseline'
+          position={[0, -0.5, CARD_THICK / 1.9]}
+        >
+          {meshDepth}
+        </Text>
+        <meshStandardMaterial
+          map={texture}
+          bumpMap={texture}
+          transparent
+          color={color}
+          depthTest={false}
+          depthWrite={false}
+        />
+      </a.mesh>
+    </>
   )
 }
 
 function CameraControls() {
+  const dontMoveCamera = useDontMoveCamera()
   const cardActive = useCardActiveValue()
   const [camControls, setCamControls] = useCamControls()
   const controlRef = useRef<THREELIB.MapControls>()
@@ -562,7 +674,7 @@ function CameraControls() {
     <MapControls
       ref={controlRef}
       zoomSpeed={2}
-      enabled={camControls === 'enabled' && !cardActive}
+      enabled={camControls === 'enabled' && !cardActive && !dontMoveCamera}
       enableRotate={false}
     />
   )
@@ -606,10 +718,10 @@ function Table() {
     <>
       <mesh
         position={position as any}
-        onClick={(e) => {
-          e.stopPropagation()
-          setCardActive(false)
-        }}
+        // onClick={(e) => {
+        //   e.stopPropagation()
+        //   setCardActive(false)
+        // }}
       >
         <planeGeometry args={[size, size, 1, 1]} />
         {/* stretch uv map of texture vertically so image repeats twice */}
@@ -636,7 +748,7 @@ export default function PlayArea() {
       const intersect = raycaster.intersectObject(raycastBoard.current)[0]
       if (!intersect) return
       // if intersect point is too close to the intersect.object.position, then ignore
-      if (intersect.point.distanceTo(intersect.object.position) < 0.1) return
+      //if (intersect.point.distanceTo(intersect.object.position) < 0.1) return
       // convert intersect point from local space to world space
       SELECTED_CARD_STATE.active.offset = intersect.point
       SELECTED_CARD_STATE.active.first?.()
