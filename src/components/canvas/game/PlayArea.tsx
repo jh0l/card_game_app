@@ -1,12 +1,13 @@
+'use client'
 import { ThreeEvent, useFrame, useThree } from '@react-three/fiber'
 import { useDrag } from '@use-gesture/react'
 import { useSpring, a } from '@react-spring/three'
-import { MouseEventHandler, Ref, useEffect, useMemo, useRef, useState } from 'react'
-import { useTexture, Text, MapControls, Html, Hud, PerspectiveCamera } from '@react-three/drei'
+import { MouseEventHandler, useEffect, useMemo, useRef, useState } from 'react'
+import { useTexture, Text, MapControls } from '@react-three/drei'
 import { crop, mapLinear, throttler } from '@/src/lib/utils'
 import * as THREE from 'three'
 import * as THREELIB from 'three-stdlib'
-import { atom, atomFamily, useRecoilValue, useSetRecoilState } from 'recoil'
+import { atomFamily, useRecoilValue, useSetRecoilState } from 'recoil'
 import {
   MAX_VISIBLE_CARDS,
   useAddHandCard,
@@ -14,21 +15,19 @@ import {
   useCardActive,
   useCardActiveValue,
   useCardColor,
-  useCardRange,
   useCardRangeValue,
-  useHandCardsList,
   useHandCardsListValue,
+  useReorderHandCards,
   useSetCardActive,
-  useSetHandCardsList,
   useSetTableParams,
   useTableCardListValue,
   useTableCardParams,
   useTableParamsValue,
+  useVisibleCards,
 } from '@/src/state/cards'
 import { PosRot, Vec3 } from '@/src/lib/types'
-import { useCamControls, useCamControlsValue, useSetCamControls } from '@/src/state/scene'
+import { useCamControls, useSetCamControls } from '@/src/state/scene'
 import { Button } from '../../ui/button'
-import { Common } from '../View'
 import HtmlPortal from '@/src/helpers/components/HtmlPortal'
 
 const DEPTH = {
@@ -114,14 +113,13 @@ function snapCardToTable(
 
 let reInitDrag = false
 function Card({ i, identity }: { i: number; identity: string }) {
-  const setCamControls = useSetCamControls()
   const addTableCard = useAddTableCard()
   const tableParams = useTableParamsValue()
   const setCardActive = useSetCardActive()
   const { viewport } = useThree()
   const texture = useTexture(`img/cards/melty-boy0-q25.png`)
-  const cardRange = useCardRangeValue()
-  const setCardList = useSetHandCardsList()
+  const reorderHandCards = useReorderHandCards()
+  const visibleCards = useVisibleCards()
   const setData = useSetRecoilState(liveDataAtom(identity))
   const [recalculate, setRecal] = useState(0)
   const [spring, setSpring] = useSpring(() => ({
@@ -134,21 +132,20 @@ function Card({ i, identity }: { i: number; identity: string }) {
   useEffect(() => {
     // determines the position of the card based on its index, the number of cards and the width of the viewport
     // the card is positioned in a stack evenly spread from left of screeen to right of the viewport
-    const increment = Math.min(viewport.width / MAX_VISIBLE_CARDS, 1)
-    const x = (i - (MAX_VISIBLE_CARDS - 1) / 2) * increment
+    const width = Math.min(viewport.width, 3.75)
+    const increment = Math.min(width / visibleCards, 1)
+    const x = (i - (visibleCards - 1) / 2) * increment
     const z = -2.9
     const pos = [x, 0, z + CARD_THICK * i] as Vec3
     POSITIONS[i].position = pos
     setSpring.start({ position: pos, scale: [1, 1, 1] })
-  }, [i, viewport.width, setSpring, recalculate])
+  }, [i, viewport.width, setSpring, recalculate, visibleCards])
 
   const bind = useDrag(({ event, first, last }) => {
     const SELF = CARD_STATE[i]
     // get card's current position
     event.stopPropagation()
-    if (first || reInitDrag) {
-      setCamControls('reset')
-      reInitDrag = false
+    if (first) {
       setCardActive(identity)
       SELECTED_CARD_STATE.active = {
         cardIndex: i,
@@ -160,9 +157,9 @@ function Card({ i, identity }: { i: number; identity: string }) {
     }
     if (last && SELECTED_CARD_STATE.active) {
       setCardActive(false)
-
       // if card is on field, add to table
       const { offset } = SELECTED_CARD_STATE.active
+
       // if on field and within bounds of table
       const onTable = offset.y > FIELD_LINE && abs(offset.x - tableParams.position[0]) < tableParams.size / 2
       if (onTable) {
@@ -177,16 +174,9 @@ function Card({ i, identity }: { i: number; identity: string }) {
           identity,
         )
       } else {
-        // reorder card list to reflect new card order
-        setCardList((list) => {
-          // apply the new card order in CARD_STATE to the cardsList
-          const newList = [...list]
-          const visible = newList.slice(cardRange[0], cardRange[1])
-          for (let i = 0; i < CARD_STATE.length; i++) {
-            const newIndex = CARD_STATE[i].positionsIndex + cardRange[0]
-            newList[newIndex] = visible[i]
-          }
-          return newList
+        // reorder card list to reflect new card order in transactions to prevent doubles
+        reorderHandCards((callback) => {
+          callback.order(CARD_STATE)
         })
         setRecal((x) => x + 1)
         for (let i = 0; i < CARD_STATE.length; i++) {
@@ -262,7 +252,7 @@ function Card({ i, identity }: { i: number; identity: string }) {
       const spring_x = x
       if (active.offset.y < FIELD_LINE) {
         // if spring_x is far enough away from POSITIONS[SELF.positionsIndex] then swap the cards index with the closest card
-        const increment = Math.min(viewport.width / MAX_VISIBLE_CARDS, 1) / 1.5
+        const increment = Math.min(viewport.width / visibleCards, 1) / 1.5
         if (abs(spring_x - (target.position[0] - increment)) > increment) {
           // for POSITIONS, find the position closest to spring_x, and swap that card's index with the current cards index
           const range = POSITIONS.map((x, i) => [x.position[0], i])
@@ -389,15 +379,6 @@ function Hand() {
   )
 }
 
-function offset(pos: Vec3, axis: 'x' | 'y' | 'z', i: number) {
-  const offset = 0.0075
-  const _pos = [...pos] as Vec3
-  _pos[0] += axis === 'x' ? offset * i : 0
-  _pos[1] += axis === 'y' ? offset * i : 0
-  _pos[2] += axis === 'z' ? offset * i : 0
-  return _pos
-}
-
 function TableCard({ identity, i }: { identity: string; i: number }) {
   const addHandCard = useAddHandCard()
   const [cardActive, setCardActive] = useCardActive()
@@ -422,7 +403,6 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
         scale: [cardSize, cardSize, cardSize] as Vec3,
       })
     } else {
-      setCamControls('reset')
       const [x, y, z] = position
       setSpring.start({
         position: [x, y, z + 1],
@@ -442,6 +422,7 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
     position,
     setCamControls,
   ])
+  const visibleCards = useVisibleCards()
   const { color } = useCardColor(identity)
   const isDark = true // luma < 0.2
   const label = identity
@@ -454,7 +435,7 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
   const pickup: MouseEventHandler<HTMLButtonElement> = (e) => {
     e.stopPropagation()
     setUnmounting(true)
-    const posIndex = Math.floor(MAX_VISIBLE_CARDS - 1)
+    const posIndex = Math.min(Math.floor(visibleCards + 1), POSITIONS.length - 1)
     const position = POSITIONS[posIndex].position as Vec3
 
     setSpring.start({
@@ -551,7 +532,6 @@ function CameraControls() {
   const [camControls, setCamControls] = useCamControls()
   const controlRef = useRef<THREELIB.MapControls>()
   const camera = useThree((three) => three.camera)
-  const table = useTableParamsValue()
   useEffect(() => {
     // modify the PresentationControls props to pan on the XY plane instead of the XZ plane
     camera.up.set(0, 0, 1)
@@ -578,7 +558,7 @@ function Table() {
   const planeTexture = useTexture('./uv_grid.jpg')
   const meshBasicMaterial = useRef<THREE.MeshBasicMaterial>(null)
   /* stretch uv map of texture vertically so image repeats twice */
-  const subdivisions = 1.7
+  const subdivisions = 2
   useEffect(() => {
     if (meshBasicMaterial.current) {
       // repeat texture
@@ -606,18 +586,16 @@ function Table() {
   }, [size, setParams, position])
 
   return (
-    <group>
+    <>
       <mesh position={position as any}>
         <planeGeometry args={[size, size, 1, 1]} />
         {/* stretch uv map of texture vertically so image repeats twice */}
         <meshBasicMaterial map={planeTexture} ref={meshBasicMaterial} />
       </mesh>
-      <group>
-        {tableCardsList.map((card, i) => (
-          <TableCard identity={card} key={card} i={i} />
-        ))}
-      </group>
-    </group>
+      {tableCardsList.map((card, i) => (
+        <TableCard identity={card} key={card} i={i} />
+      ))}
+    </>
   )
 }
 
@@ -650,12 +628,7 @@ export default function PlayArea() {
       <CameraControls />
       <group position={[0, -2, 0]} rotation={[0, 0, 0]}>
         <Table />
-        <Hud>
-          <Common />
-          <group position={[0, -2, 0]} rotation={[0, 0, 0]}>
-            <Hand />
-          </group>
-        </Hud>
+        <Hand />
         <mesh ref={raycastBoard} position={[0, height / 3, -3]}>
           <planeGeometry args={[width * 2, height * 2, 1, 1]} />
           {/* transparent material */}

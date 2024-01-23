@@ -1,6 +1,7 @@
 import {
   atom,
   atomFamily,
+  selector,
   selectorFamily,
   useRecoilCallback,
   useRecoilState,
@@ -9,7 +10,6 @@ import {
 } from 'recoil'
 import { Vec3 } from '../lib/types'
 import { createHash } from 'crypto'
-
 export const MAX_VISIBLE_CARDS = 7
 const CARDS = 20
 
@@ -90,14 +90,52 @@ const handCardsList = atom<string[]>({
 export const useHandCardsListValue = () => useRecoilValue(handCardsList)
 export const useSetHandCardsList = () => useSetRecoilState(handCardsList)
 export const useHandCardsList = () => useRecoilState(handCardsList)
+interface ReorderCallback {
+  order(CARD_STATE: { positionsIndex: number }[]): void
+}
+export const useReorderHandCards = () =>
+  useRecoilCallback(
+    ({ transact_UNSTABLE }) =>
+      (callback: (order: ReorderCallback) => void) => {
+        transact_UNSTABLE(({ set, get }) => {
+          callback({
+            order(CARD_STATE: { positionsIndex: number }[]) {
+              const newList = [...get(handCardsList)]
+              const cardRange = get(cardRangeAtom)
+              const visible = newList.slice(cardRange[0], cardRange[1])
+              for (let i = 0; i < visible.length; i++) {
+                const newIndex = CARD_STATE[i].positionsIndex + cardRange[0]
+                if (visible[i] === undefined) {
+                  debugger
+                }
+                newList[newIndex] = visible[i]
+              }
+              // remove doubles while keeping order of array
+              set(handCardsList, Array.from(new Set(newList)))
+            },
+          })
+        })
+      },
+    [],
+  )
 
 const cardRangeAtom = atom<number[]>({
   key: 'cardRange',
   default: [0, MAX_VISIBLE_CARDS - 1],
 })
+
 export const useCardRangeValue = () => useRecoilValue(cardRangeAtom)
 export const useSetCardRange = () => useSetRecoilState(cardRangeAtom)
 export const useCardRange = () => useRecoilState(cardRangeAtom)
+
+const visibleCardsSelector = selector<number>({
+  key: 'visibleCards',
+  get: ({ get }) => {
+    const [start, end] = get(cardRangeAtom)
+    return end - start
+  },
+})
+export const useVisibleCards = () => useRecoilValue(visibleCardsSelector)
 
 const cardActive = atom<string | false>({
   key: 'activeCard',
@@ -155,7 +193,6 @@ export const useAddHandCard = () => {
     ({ set }) =>
       (identity: string) => {
         set(handCardsList, (list) => {
-          console.log('HAND LIST', list)
           // for some reason sometimes we get duplicates
           if (list.includes(identity)) {
             return list
@@ -165,7 +202,6 @@ export const useAddHandCard = () => {
         })
         set(tableCardList, (list) => {
           const res = list.filter((card) => card !== identity)
-          console.log('TABLE LIST', res)
           return res
         })
       },
