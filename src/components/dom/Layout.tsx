@@ -3,7 +3,7 @@
 import { useRef } from 'react'
 import { RecoilRoot } from 'recoil'
 import { SessionProvider } from 'next-auth/react'
-import NavBar from '@/src/components/NavBar'
+import NavBar from '@/src/components/dom/NavBar'
 import { ThemeProvider } from '@/src/components/theme-provider'
 import Scene from '@/src/components/canvas/Scene'
 // import dynamic from 'next/dynamic'

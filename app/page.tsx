@@ -1,6 +1,7 @@
 import { GameView } from '@/src/components/canvas/game'
-import { HandScrubber } from './HandScrubber'
-import { TopRightMenu } from './TopRightMenu'
+import { HandScrubber } from '../src/components/dom/HandScrubber'
+import { TopRightMenu } from '../src/components/dom/TopRightMenu'
+import GameBar from '@/src/components/dom/GameBar'
 
 export default function Page() {
   return (
@@ -9,6 +10,7 @@ export default function Page() {
         <GameView />
         <HandScrubber />
         <TopRightMenu />
+        <GameBar />
       </div>
     </main>
   )

@@ -25,6 +25,7 @@ const Hand = dynamic(() => import('@/src/components/canvas/game/Hand').then((mod
 import { View, Common } from '@/src/components/canvas/View'
 import PlayArea from '@/src/components/canvas/game/PlayArea'
 import Players from '@/src/components/canvas/game/Players'
+import HtmlPortal from '@/src/helpers/components/HtmlPortal'
 
 //*/
 

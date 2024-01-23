@@ -99,23 +99,36 @@ function snapCardToTable(
   position: Vec3,
   tableParams: { size: number; position: Vec3; cardSize: number; subdivisions: number },
 ) {
-  // snap cardPosition to table grid based on size and position, and cardSize
-  // card ratio height to width ratio is 1.5/1, table h/w ratio is 1/1
-  // card is cardSize/size of table size, card should snap to table
+  // snap cardPosition to table grid based on size and position of table, top left of card
+  // should snap to top left of table, top right of card top right of table, etc
+  // card h/w ratio is 1.5/1, table is a square, card is cardSize/size fraction of table width
+  // position is the position of the card in world space, not local space of table
+  // table position is the center of the table
+  // table size is the width of the table
+  // card size is scale of the card
+  // output position that snaps to grid of table
+  // by default there are 10x10 grid squares on the table
+  // if subdivisions is 1.5, then there are 10*1.5 grid squares on table
   const [x, y, z] = position
-  const { size, cardSize, subdivisions } = tableParams
-  const increment = size / (subdivisions * 10)
-  const x_ = Math.round(x / increment) * increment
-  const y_ = Math.round(y / increment) * increment
-  // const z_ = Math.round(z / increment) * increment
-  return [x_, y_, z] as Vec3
+  const { size, cardSize } = tableParams
+  const [tableX, _tableY] = tableParams.position
+  const tableY = _tableY + 0.5
+  const tableWidth = tableParams.size
+  const subdivisions = tableParams.subdivisions
+  const increment = tableWidth / ((size / cardSize) * 2)
+  const offsetX = (x - tableX) / increment
+  const offsetY = (y - tableY) / increment
+  const gridX = Math.round(offsetX)
+  const gridY = Math.round(offsetY)
+  const snappedX = tableX + gridX * increment
+  const snappedY = tableY + gridY * increment
+  return [snappedX, snappedY, z] as Vec3
 }
 
-let reInitDrag = false
 function Card({ i, identity }: { i: number; identity: string }) {
   const addTableCard = useAddTableCard()
   const tableParams = useTableParamsValue()
-  const setCardActive = useSetCardActive()
+  const [cardActive, setCardActive] = useCardActive()
   const { viewport } = useThree()
   const texture = useTexture(`img/cards/melty-boy0-q25.png`)
   const reorderHandCards = useReorderHandCards()
@@ -204,7 +217,7 @@ function Card({ i, identity }: { i: number; identity: string }) {
         let y_ = state_y + 1.75 + zoom * 0.9 + (onTable ? 0.4 : 0)
         const z = CARD_THICK * SELF.positionsIndex
         const scale = [zoom, zoom, zoom] as Vec3
-        let position = [x_, y_, onTable ? -3 : -2 + z] as Vec3
+        let position = [x_, y_, onTable ? -2.95 : -2 + z] as Vec3
         if (onTable) {
           // snap cardPosition to table grid based on tableParams.size and tableParams.position
           // card ration is 1.5/1, table ratio is 1/1
@@ -305,62 +318,62 @@ function Card({ i, identity }: { i: number; identity: string }) {
   const label = identity
   // @ts-ignore
   const bindType = bind()
+  const meshDepth = DEPTH.HAND_CARDS * (i + (cardActive === identity ? 10 : 1))
+  const textDepth = meshDepth + 1
   return (
-    <>
-      <a.mesh {...spring} {...bindType} renderOrder={DEPTH.HAND_CARDS * i}>
-        <planeGeometry args={[1, 1.5, 1, 1]} />
-        <meshStandardMaterial
-          map={texture}
-          bumpMap={texture}
-          transparent
-          color={color}
-          depthTest={false}
-          depthWrite={false}
-        />
-        <Text
-          material-depthTest={false}
-          material-depthWrite={false}
-          renderOrder={DEPTH.HAND_CARDS * i + 1}
-          font='Rubik-Regular.ttf'
-          scale={[TEXT, TEXT, TEXT]}
-          color={isDark ? 'white' : 'black'}
-          anchorX='left'
-          anchorY='top'
-          position={[-1 / 2.2, 1.5 / 2.2, CARD_THICK / 1.9]}
-        >
-          {label}
-        </Text>
-        <LiveText index={identity} renderOrder={DEPTH.HAND_CARDS * i + 1} />
-        <Text
-          material-depthTest={false}
-          material-depthWrite={false}
-          renderOrder={DEPTH.HAND_CARDS * i + 1}
-          font='Rubik-Regular.ttf'
-          scale={[TEXT, TEXT, TEXT]}
-          color={isDark ? 'white' : 'black'}
-          anchorX='right'
-          anchorY='bottom-baseline'
-          position={[-1 / -2.2, 1.5 / -2.2, CARD_THICK / 1.9]}
-        >
-          {label}
-        </Text>
-        <Text
-          material-depthTest={false}
-          material-depthWrite={false}
-          renderOrder={DEPTH.HAND_CARDS * i + 1}
-          font='Rubik-Regular.ttf'
-          scale={[TEXT / 3.2, TEXT / 3.2, TEXT / 3.2]}
-          color={isDark ? 'white' : 'black'}
-          outlineWidth={0.005}
-          outlineColor={!isDark ? 'white' : 'black'}
-          anchorX='center'
-          anchorY='top-baseline'
-          position={[0, -0.28, CARD_THICK / 1.9]}
-        >
-          Lorem Ipsum Lorem Ipsum
-        </Text>
-      </a.mesh>
-    </>
+    <a.mesh {...spring} {...bindType} renderOrder={meshDepth}>
+      <planeGeometry args={[1, 1.5, 1, 1]} />
+      <meshStandardMaterial
+        map={texture}
+        bumpMap={texture}
+        transparent
+        color={color}
+        depthTest={false}
+        depthWrite={false}
+      />
+      <Text
+        material-depthTest={false}
+        material-depthWrite={false}
+        renderOrder={textDepth}
+        font='Rubik-Regular.ttf'
+        scale={[TEXT, TEXT, TEXT]}
+        color={isDark ? 'white' : 'black'}
+        anchorX='left'
+        anchorY='top'
+        position={[-1 / 2.2, 1.5 / 2.2, CARD_THICK / 1.9]}
+      >
+        {label}
+      </Text>
+      <LiveText index={identity} renderOrder={textDepth} />
+      <Text
+        material-depthTest={false}
+        material-depthWrite={false}
+        renderOrder={textDepth}
+        font='Rubik-Regular.ttf'
+        scale={[TEXT, TEXT, TEXT]}
+        color={isDark ? 'white' : 'black'}
+        anchorX='right'
+        anchorY='bottom-baseline'
+        position={[-1 / -2.2, 1.5 / -2.2, CARD_THICK / 1.9]}
+      >
+        {label}
+      </Text>
+      <Text
+        material-depthTest={false}
+        material-depthWrite={false}
+        renderOrder={textDepth}
+        font='Rubik-Regular.ttf'
+        scale={[TEXT / 3.2, TEXT / 3.2, TEXT / 3.2]}
+        color={isDark ? 'white' : 'black'}
+        outlineWidth={0.005}
+        outlineColor={!isDark ? 'white' : 'black'}
+        anchorX='center'
+        anchorY='top-baseline'
+        position={[0, -0.28, CARD_THICK / 1.9]}
+      >
+        Lorem Ipsum Lorem Ipsum
+      </Text>
+    </a.mesh>
   )
 }
 
@@ -426,7 +439,11 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
   const { color } = useCardColor(identity)
   const isDark = true // luma < 0.2
   const label = identity
+  const meshDepth = DEPTH.TABLE_CARDS * (i + 1) + (identity === cardActive ? 1000 : 0)
   const onClick = async (event: ThreeEvent<MouseEvent>) => {
+    // check that this is the object with the highest renderOrder
+    let max = event.intersections.reduce((max, v) => (max.object.renderOrder > v.object.renderOrder ? max : v))
+    if (max.object.renderOrder !== meshDepth) return
     event.stopPropagation()
     if (locked && cardActive !== identity) {
       setCardActive(identity)
@@ -454,7 +471,6 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
       },
     })
   }
-  const meshDepth = DEPTH.TABLE_CARDS * i + (identity === cardActive ? 1000 : 0)
   const textDepth = meshDepth + 1
   return (
     <a.mesh {...(spring as any)} onClick={onClick} renderOrder={meshDepth}>
@@ -553,12 +569,13 @@ function CameraControls() {
 }
 
 function Table() {
+  const setCardActive = useSetCardActive()
   const tableCardsList = useTableCardListValue()
   const { viewport } = useThree()
   const planeTexture = useTexture('./uv_grid.jpg')
   const meshBasicMaterial = useRef<THREE.MeshBasicMaterial>(null)
   /* stretch uv map of texture vertically so image repeats twice */
-  const subdivisions = 2
+  const subdivisions = 1.8
   useEffect(() => {
     if (meshBasicMaterial.current) {
       // repeat texture
@@ -580,14 +597,20 @@ function Table() {
     setParams({
       size,
       position,
-      cardSize: size / (17 / 2),
+      cardSize: size / 9,
       subdivisions,
     })
   }, [size, setParams, position])
 
   return (
     <>
-      <mesh position={position as any}>
+      <mesh
+        position={position as any}
+        onClick={(e) => {
+          e.stopPropagation()
+          setCardActive(false)
+        }}
+      >
         <planeGeometry args={[size, size, 1, 1]} />
         {/* stretch uv map of texture vertically so image repeats twice */}
         <meshBasicMaterial map={planeTexture} ref={meshBasicMaterial} />
