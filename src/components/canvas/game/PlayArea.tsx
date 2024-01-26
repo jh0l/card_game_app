@@ -10,26 +10,25 @@ import * as THREELIB from 'three-stdlib'
 import { atomFamily, useRecoilValue, useSetRecoilState } from 'recoil'
 import {
   MAX_VISIBLE_CARDS,
-  useAddHandCard,
-  useAddTableCard,
+  useCardMoveTableHand,
+  useTableCardAdd,
   useCardActive,
   useCardActiveValue,
   useCardColor,
   useCardRangeValue,
   useHandCardsListValue,
-  useReorderHandCards,
-  useSetCardActive,
-  useSetTableParams,
+  useHandCardsReorder,
+  useCardActiveSet,
+  useTableParamsSet,
   useTableCardListValue,
   useTableCardParams,
   useTableParamsValue,
-  useVisibleCards,
+  useVisibleCardsCount,
 } from '@/src/state/cards'
 import { PosRot, Vec3 } from '@/src/lib/types'
 import { useCamControls, useDontMoveCamera, useSetCamControls, useSetDontMoveCamera } from '@/src/state/scene'
 import { Button } from '../../ui/button'
 import HtmlPortal from '@/src/helpers/components/HtmlPortal'
-import HandIcon from '@/src/lib/icons/HandIcon'
 
 const DEPTH = {
   TABLE_CARDS: 10,
@@ -39,7 +38,7 @@ const DEPTH = {
 const MASS = 1.3
 const FRICTION = 77
 const CARD_THICK = 0.05
-const FIELD_LINE = -1.2
+const FIELD_LINE = -1.4
 const TEXT = 0.2
 
 const { abs } = Math
@@ -113,9 +112,8 @@ function snapCardToTable(
   const [x, y, z] = position
   const { size, cardSize } = tableParams
   const [tableX, _tableY] = tableParams.position
-  const tableY = _tableY + 0.5
+  const tableY = _tableY
   const tableWidth = tableParams.size
-  const subdivisions = tableParams.subdivisions
   const increment = tableWidth / ((size / cardSize) * 2)
   const offsetX = (x - tableX) / increment
   const offsetY = (y - tableY) / increment
@@ -126,14 +124,59 @@ function snapCardToTable(
   return [snappedX, snappedY, z] as Vec3
 }
 
-function Card({ i, identity }: { i: number; identity: string }) {
-  const addTableCard = useAddTableCard()
+const cardMaterialMap = new Map<string, THREE.MeshPhysicalMaterial>()
+function useCardMaterial(color: string) {
+  const textures = useTexture({
+    map: 'img/cards/melty-boy0-q25.png',
+    bumpMap: 'img/cards/melty-boy0-q25.png',
+    iridescenceThicknessMap: 'img/cards/melty-boy0-q25_clearcoat.png',
+  })
+  if (cardMaterialMap.has(color)) {
+    return cardMaterialMap.get(color)!
+  } else {
+    const material = new THREE.MeshPhysicalMaterial({
+      color: color,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+      reflectivity: 0.95,
+      roughness: 0.06,
+      clearcoat: 0.7,
+      clearcoatRoughness: 0.05,
+      iridescence: 1,
+      iridescenceIOR: 2.04,
+      iridescenceThicknessRange: [100, 507],
+      sheenColor: color,
+      ...textures,
+    })
+    cardMaterialMap.set(color, material)
+    return material
+  }
+}
+
+/** given a square at tableParams.position of width and height tableParams.size units across
+ * - if at least half the bounds of the rectangle of at `position` of width tableParams.cardSize and 1.5* tableParams.cardSize  is within bounds of square, return true
+ */
+function withinSquareBounds(position: Vec3, tableParams: { size: number; position: Vec3; cardSize: number }): boolean {
+  const [x, y] = position
+  const [tableX, tableY] = tableParams.position
+  const tableWidth = tableParams.size
+  const w2 = tableWidth / 2 - tableParams.cardSize / 2
+  const h2 = tableWidth / 2 - (tableParams.cardSize * 1.5) / 2
+  const xClamped = crop(x, tableX - w2, tableX + w2)
+  const yClamped = crop(y, tableY - h2, tableY + h2)
+  return xClamped === x && yClamped === y
+}
+
+function HandCard({ i, identity }: { i: number; identity: string }) {
+  const addTableCard = useTableCardAdd()
   const tableParams = useTableParamsValue()
   const [cardActive, setCardActive] = useCardActive()
   const { viewport } = useThree()
-  const texture = useTexture(`img/cards/melty-boy0-q25.png`)
-  const reorderHandCards = useReorderHandCards()
-  const visibleCards = useVisibleCards()
+  const { color } = useCardColor(identity)
+  const material = useCardMaterial(color)
+  const reorderHandCards = useHandCardsReorder()
+  const visibleCards = useVisibleCardsCount()
   const setData = useSetRecoilState(liveDataAtom(identity))
   const [recalculate, setRecal] = useState(0)
   const [spring, setSpring] = useSpring(() => ({
@@ -152,7 +195,7 @@ function Card({ i, identity }: { i: number; identity: string }) {
     const z = -2.9
     const pos = [x, 0, z + CARD_THICK * i] as Vec3
     POSITIONS[i].position = pos
-    setSpring.start({ position: pos, scale: [1, 1, 1] })
+    setSpring.start({ position: pos, scale: [1, 1, 1], rotation: defaultRotation })
   }, [i, viewport.width, setSpring, recalculate, visibleCards])
 
   const bind = useDrag(({ event, first, last }) => {
@@ -160,7 +203,7 @@ function Card({ i, identity }: { i: number; identity: string }) {
     // get card's current position
     event.stopPropagation()
     if (first) {
-      setCardActive(identity)
+      setCardActive({ identity, type: 'hand' })
       SELECTED_CARD_STATE.active = {
         cardIndex: i,
         offset: zVector3,
@@ -174,11 +217,10 @@ function Card({ i, identity }: { i: number; identity: string }) {
       // if card is on field, add to table
       const { offset } = SELECTED_CARD_STATE.active
 
+      const cardPosition = spring.position.get()
       // if on field and within bounds of table
-      const onTable = offset.y > FIELD_LINE && abs(offset.x - tableParams.position[0]) < tableParams.size / 2
+      const onTable = withinSquareBounds(cardPosition, tableParams)
       if (onTable) {
-        const cardPosition = spring.position.get()
-
         const position = snapCardToTable(cardPosition, tableParams)
         addTableCard(
           {
@@ -207,18 +249,20 @@ function Card({ i, identity }: { i: number; identity: string }) {
         if (!SELECTED_CARD_STATE.active) return
 
         const state_y = SELECTED_CARD_STATE.active.offset.y
-        const onTable = state_y > FIELD_LINE
         let x_ = SELECTED_CARD_STATE.active.offset.x * 0.9
         const pos = spring.position.get()
+        const onTable = withinSquareBounds(pos, tableParams)
         // sometimes the card will get stuck at 0,0,0 - ignore this
         const isZeroBug = pos[1].toFixed(2) === '0.00' && state_y.toFixed(2) === '0.00'
         const [_x, _y] = pos.map((x) => (x as any).toFixed(1))
         setDataThrottle && setData(`${_x}\n${_y}`)
-        const zoom = onTable ? tableParams.cardSize : mapLinear(state_y, -2.7, FIELD_LINE - 0.2, 1, 2)
+        const zoom = onTable
+          ? tableParams.cardSize
+          : mapLinear(state_y, tableParams.edges.bottom + 2, tableParams.edges.bottom, 1, tableParams.cardSize)
         let y_ = state_y + 1.75 + zoom * 0.9 + (onTable ? 0.4 : 0)
         const z = CARD_THICK * SELF.positionsIndex
         const scale = [zoom, zoom, zoom] as Vec3
-        let position = [x_, y_, onTable ? -2.95 : -2 + z] as Vec3
+        let position = [x_, y_, onTable ? tableParams.position[2] : -2 + z] as Vec3
         if (onTable) {
           // snap cardPosition to table grid based on tableParams.size and tableParams.position
           // card ration is 1.5/1, table ratio is 1/1
@@ -261,11 +305,11 @@ function Card({ i, identity }: { i: number; identity: string }) {
     const SELF = CARD_STATE[i]
     const target = POSITIONS[SELF.positionsIndex] || zPositions
     const { active } = SELECTED_CARD_STATE
-    const [x, y, z] = spring.position.get()
     if (active && active.cardIndex === -1) return
+    const [x, y, z] = spring.position.get()
     if (active && active.cardIndex === i) {
       const spring_x = x
-      if (active.offset.y < FIELD_LINE) {
+      if (active.offset.y < tableParams.edges.bottom) {
         // if spring_x is far enough away from POSITIONS[SELF.positionsIndex] then swap the cards index with the closest card
         const increment = Math.min(viewport.width / visibleCards, 1) / 1.5
         if (abs(spring_x - (target.position[0] - increment)) > increment) {
@@ -284,7 +328,7 @@ function Card({ i, identity }: { i: number; identity: string }) {
         }
       }
       const rotation = [0, -x / 30, 0] as Vec3
-      if (!isSame(SELF.current.rotation, rotation) && active.offset.y < FIELD_LINE) {
+      if (!isSame(SELF.current.rotation, rotation) && active.offset.y < tableParams.edges.bottom) {
         setTimeout(() => {
           setSpring.start({ rotation, config: { friction: 300 } })
           SELF.current.rotation = rotation
@@ -293,8 +337,7 @@ function Card({ i, identity }: { i: number; identity: string }) {
     } else if (active !== false) {
       // if card index is < active index,
       // else if card index is > active index, move card to the right
-      const state_y = active.offset.y
-      const onField = state_y > FIELD_LINE
+      const onField = withinSquareBounds([x, y, z], tableParams)
       const OFFSET = onField ? 0 : 0.4
       const offset = SELF.positionsIndex > CARD_STATE[active.cardIndex].positionsIndex ? OFFSET : -OFFSET
       const xOff = target.position[0] + offset
@@ -315,24 +358,15 @@ function Card({ i, identity }: { i: number; identity: string }) {
       })
     }
   })
-  const { color } = useCardColor(identity)
   const isDark = true // luma < 0.2
   const label = identity
   // @ts-ignore
   const bindType = bind()
-  const meshDepth = DEPTH.HAND_CARDS * (i + (cardActive === identity ? 10 : 1))
+  const meshDepth = DEPTH.HAND_CARDS * (i + (cardActive && cardActive.identity === identity ? 10 : 1))
   const textDepth = meshDepth + 1
   return (
-    <a.mesh {...spring} {...bindType} renderOrder={meshDepth}>
+    <a.mesh {...spring} {...bindType} renderOrder={meshDepth} material={material}>
       <planeGeometry args={[1, 1.5, 1, 1]} />
-      <meshStandardMaterial
-        map={texture}
-        bumpMap={texture}
-        transparent
-        color={color}
-        depthTest={false}
-        depthWrite={false}
-      />
       <Text
         material-depthTest={false}
         material-depthWrite={false}
@@ -388,23 +422,25 @@ function Hand() {
   return (
     <>
       {cardsList.slice(cardRange[0], cardRange[1]).map((identity, i) => (
-        <Card identity={identity} i={i} key={identity} />
+        <HandCard identity={identity} i={i} key={identity} />
       ))}
     </>
   )
 }
 
+/** table card move is active - ignore scaling dragging */
+let tableCardMoverActive = false
 function TableCard({ identity, i }: { identity: string; i: number }) {
-  const addHandCard = useAddHandCard()
+  const addHandCard = useCardMoveTableHand()
   const [cardActive, setCardActive] = useCardActive()
   const setDontMoveCamera = useSetDontMoveCamera()
-
   const [depthOffset, setDepthOffset] = useState(0)
   const tableParams = useTableParamsValue()
   const { size, position, cardSize } = tableParams
-  const texture = useTexture(`img/cards/melty-boy0-q25.png`)
-  const handTex = useTexture(`img/handwhite.png`)
   const [params, setParams] = useTableCardParams(identity)
+  const { color } = useCardColor(identity)
+  const material = useCardMaterial(color)
+  const handTex = useTexture(`img/handwhite.png`)
   const [unmounting, setUnmounting] = useState(false)
   const zoomSize = size * 0.4
   const [spring, setSpring] = useSpring(() => ({
@@ -418,13 +454,14 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
   const moverBind = useDrag(({ event, first, last, xy, initial }) => {
     event.stopPropagation()
     if (first) {
+      tableCardMoverActive = true
       SELECTED_CARD_STATE.active = {
         cardIndex: -1,
         offset: zVector3,
         closest: -1,
       }
     }
-    let pos
+    let pos: Vec3 = zVec
     if (SELECTED_CARD_STATE.active) {
       const update = () => {
         if (!SELECTED_CARD_STATE.active) return
@@ -435,30 +472,44 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
         } else {
           const { offset } = SELECTED_CARD_STATE.active
           const [x, _y] = offset.toArray()
-          // offset y by
-          const y = _y + 2.85
+          // offset y by distance from dragger
+          const y = _y + 2.45
           position = snapCardToTable([x, y, params.position[2]], tableParams)
+          // limit position to within bounds of table including card perimeter
+          const [tableX, tableY] = tableParams.position
+          const tableWidth = tableParams.size
+          const w2 = tableWidth / 2 - cardSize / 2
+          const h2 = tableWidth / 2 - (cardSize * 1.5) / 2
+          const xClamped = crop(position[0], tableX - w2, tableX + w2)
+          const yClamped = crop(position[1], tableY - h2, tableY + h2)
+          position = [xClamped, yClamped, position[2]] as Vec3
         }
         setSpring.start({ position })
         pos = position
       }
       if (first) {
+        setDontMoveCamera(true)
+
         SELECTED_CARD_STATE.active.first = update
       } else {
         update()
         SELECTED_CARD_STATE.active.first = undefined
       }
       if (last) {
+        tableCardMoverActive = false
+        setDontMoveCamera(false)
         SELECTED_CARD_STATE.active = false
         pos && setParams((x) => ({ ...x, position: pos }))
+        lastDrag = Date.now()
       }
     }
   })
   const bind = useDrag(
-    ({ event, first, last, xy, initial }) => {
+    ({ first, last, xy, initial }) => {
       // if (xy[0] > 0 && xy[1] > 0) {
       //   debugger
       // }
+      if (tableCardMoverActive) return
       if (first) {
         setDontMoveCamera(true)
         setDragging(true)
@@ -490,37 +541,33 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
         })
       }
     },
-    { bounds: { left: -MAX_DIST, right: MAX_DIST, top: -MAX_DIST, bottom: MAX_DIST }, rubberband: true },
+    {
+      filterTaps: true,
+    },
   )
   useEffect(() => {
-    if (cardActive !== identity && !dragging) {
+    if ((!cardActive || cardActive.identity !== identity) && !dragging) {
       setSpring.start({
         position: params.position,
         rotation: params.rotation,
         scale: [cardSize, cardSize, cardSize] as Vec3,
       })
-    } else {
-      // const [x, y, z] = position
-      // setSpring.start({
-      //   position: [x, y, z + 1],
-      //   scale: [zoomSize, zoomSize, zoomSize],
-      //   rotation: [0, 0, 0],
-      // })
     }
   }, [params.position, params.rotation, setSpring, cardActive, identity, cardSize, dragging])
-  const visibleCards = useVisibleCards()
-  const { color } = useCardColor(identity)
+  const visibleCards = useVisibleCardsCount()
   const isDark = true // luma < 0.2
   const label = identity
-  const meshDepth = DEPTH.TABLE_CARDS * (i + 1) * (identity === cardActive ? 1000 : 1) + depthOffset
+  const meshDepth =
+    DEPTH.TABLE_CARDS * (i + 1) * (cardActive && cardActive.identity === identity ? 1000 : 1) + depthOffset
+  const textDepth = meshDepth + 1
   const onClick = async (event: ThreeEvent<MouseEvent>) => {
     // check that this is the object with the highest renderOrder
     let max = event.intersections.reduce((max, v) => (max.object.renderOrder > v.object.renderOrder ? max : v))
-    if (max.object.renderOrder !== meshDepth) return
+    if (max.object.renderOrder !== meshDepth && max.object.renderOrder !== textDepth) return
     event.stopPropagation()
-    if (cardActive !== identity) {
-      setCardActive(identity)
-    } else {
+    if ((!cardActive || cardActive.identity !== identity) && !dragging) {
+      setCardActive({ identity, type: 'table' })
+    } else if (!dragging) {
       setCardActive(false)
     }
   }
@@ -550,15 +597,21 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
   const bindType = bind()
   // @ts-ignore
   const moverBindType = moverBind()
-  const textDepth = meshDepth + 1
-  const showControls = cardActive === identity && !unmounting
+  const showControls = cardActive && cardActive.identity === identity && !unmounting
   return (
     <>
-      <a.mesh {...(spring as any)} {...bindType} onClick={onClick} renderOrder={meshDepth}>
+      <a.mesh
+        {...(spring as any)}
+        {...bindType}
+        material={material}
+        onClick={onClick}
+        renderOrder={meshDepth}
+        name={`table-card-${identity}`}
+      >
         <group position={[0, size * 0.15, 0]}>
           {showControls && (
             <HtmlPortal>
-              <div className='pointer-events-auto flex -translate-y-full gap-2 rounded bg-white/50 p-2 shadow-lg'>
+              <div className='pointer-events-auto flex -translate-y-full gap-2 rounded bg-white/80 p-2 shadow-lg'>
                 <Button variant='secondary' onClick={pickup}>
                   PICKUP
                 </Button>
@@ -567,19 +620,26 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
           )}
         </group>
         {showControls && !dragging && (
-          <a.mesh renderOrder={meshDepth * 10} {...moverBindType} position={[0, -1.75, 0]} name='grabby'>
-            <planeGeometry args={[0.75, 0.75, 1, 1]} />
+          <a.mesh renderOrder={meshDepth * 10} {...moverBindType} position={[0, -1, 0]} name={`${identity}-grabby`}>
+            <planeGeometry args={[0.5, 0.5, 1, 1]} />
             <meshStandardMaterial
               map={handTex}
               bumpMap={handTex}
               transparent
-              color='white'
+              color='black'
               depthTest={false}
               depthWrite={false}
             />
-            <a.mesh renderOrder={meshDepth * 10}>
-              <circleGeometry args={[0.65]} />
-              <meshBasicMaterial color='black' transparent opacity={0.75} depthTest={false} depthWrite={false} />
+            <a.mesh renderOrder={meshDepth * 10} {...moverBindType}>
+              <circleGeometry args={[0.4]} />
+              <meshBasicMaterial
+                color='white'
+                transparent
+                opacity={0.95}
+                depthTest={false}
+                depthWrite={false}
+                {...moverBindType}
+              />
             </a.mesh>
           </a.mesh>
         )}
@@ -641,14 +701,6 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
         >
           {meshDepth}
         </Text>
-        <meshStandardMaterial
-          map={texture}
-          bumpMap={texture}
-          transparent
-          color={color}
-          depthTest={false}
-          depthWrite={false}
-        />
       </a.mesh>
     </>
   )
@@ -665,29 +717,41 @@ function CameraControls() {
     camera.up.set(0, 0, 1)
   }, [camera.up])
   useEffect(() => {
+    function updateDrag() {
+      lastDrag = Date.now()
+    }
+    const refCopy = controlRef.current
     if (camControls === 'reset') {
       controlRef.current?.reset()
       setCamControls('disabled')
+    } else if (camControls === 'enabled') {
+      controlRef.current?.addEventListener('change', updateDrag)
+    }
+    return () => {
+      refCopy && refCopy.removeEventListener('change', updateDrag)
     }
   }, [camControls, setCamControls])
+  const handCardNone = !cardActive || cardActive.type !== 'hand'
+  console.log(camControls === 'enabled', handCardNone, !dontMoveCamera)
   return (
     <MapControls
       ref={controlRef}
       zoomSpeed={2}
-      enabled={camControls === 'enabled' && !cardActive && !dontMoveCamera}
+      enabled={camControls === 'enabled' && handCardNone && !dontMoveCamera}
       enableRotate={false}
     />
   )
 }
 
+/** time of last drag event that may have ended on Table triggering erroneous Table onClick */
+let lastDrag = 0
 function Table() {
-  const setCardActive = useSetCardActive()
+  const setCardActive = useCardActiveSet()
   const tableCardsList = useTableCardListValue()
-  const { viewport } = useThree()
   const planeTexture = useTexture('./uv_grid.jpg')
   const meshBasicMaterial = useRef<THREE.MeshBasicMaterial>(null)
   /* stretch uv map of texture vertically so image repeats twice */
-  const subdivisions = 1.8
+  const subdivisions = 0.9
   useEffect(() => {
     if (meshBasicMaterial.current) {
       // repeat texture
@@ -698,30 +762,39 @@ function Table() {
       meshBasicMaterial.current.map.needsUpdate = true
     }
   }, [])
-  const setParams = useSetTableParams()
+  const setParams = useTableParamsSet()
   // set so table reaches edges of screen if screen long enough
   // max W, H - 5.429 5.095
-  const width = crop(viewport.width, 2, 5.429)
-  const height = crop(viewport.height, 2, 5.095)
+  const width = 5
+  const height = 5
   const size = Math.min(width * 1.3, height * 0.84)
   const position = useMemo(() => [0, (height * 1.85) / 3, -3] as Vec3, [height])
+
   useEffect(() => {
+    const edges = {
+      bottom: position[1] - size / 2,
+      top: position[1] + size / 2,
+      left: position[0] - size / 2,
+      right: position[0] + size / 2,
+    }
     setParams({
       size,
       position,
       cardSize: size / 9,
       subdivisions,
+      edges,
     })
   }, [size, setParams, position])
 
   return (
     <>
       <mesh
+        name='table'
         position={position as any}
-        // onClick={(e) => {
-        //   e.stopPropagation()
-        //   setCardActive(false)
-        // }}
+        onClick={(e) => {
+          if (lastDrag + 100 > Date.now()) return
+          setCardActive(false)
+        }}
       >
         <planeGeometry args={[size, size, 1, 1]} />
         {/* stretch uv map of texture vertically so image repeats twice */}
@@ -755,8 +828,8 @@ export default function PlayArea() {
     }
   })
   const scale = 3.39
-  const width = Math.min(viewport.width, 5.429)
-  const height = Math.min(viewport.height, 5.095)
+  const width = 5
+  const height = 5
   return (
     <>
       {/* <Html className='pointer-events-none w-96 font-mono'></Html> */}
@@ -764,10 +837,10 @@ export default function PlayArea() {
       <group position={[0, -2, 0]} rotation={[0, 0, 0]}>
         <Table />
         <Hand />
-        <mesh ref={raycastBoard} position={[0, height / 3, -3]}>
+        <mesh ref={raycastBoard} position={[0, height / 2, -3]}>
           <planeGeometry args={[width * 2, height * 2, 1, 1]} />
           {/* transparent material */}
-          {/* <meshBasicMaterial map={planeTexture} color='red' opacity={0.5} transparent /> */}
+          {/* <meshBasicMaterial map={planeTexture} color='red' opacity={0.3} transparent /> */}
           <meshBasicMaterial opacity={0} transparent />
         </mesh>
         <mesh position={[0, 4, -10]}>

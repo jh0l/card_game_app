@@ -88,12 +88,12 @@ const handCardsList = atom<string[]>({
 })
 
 export const useHandCardsListValue = () => useRecoilValue(handCardsList)
-export const useSetHandCardsList = () => useSetRecoilState(handCardsList)
+export const useHandCardsListSet = () => useSetRecoilState(handCardsList)
 export const useHandCardsList = () => useRecoilState(handCardsList)
 interface ReorderCallback {
   order(CARD_STATE: { positionsIndex: number }[]): void
 }
-export const useReorderHandCards = () =>
+export const useHandCardsReorder = () =>
   useRecoilCallback(
     ({ transact_UNSTABLE }) =>
       (callback: (order: ReorderCallback) => void) => {
@@ -125,7 +125,7 @@ const cardRangeAtom = atom<number[]>({
 })
 
 export const useCardRangeValue = () => useRecoilValue(cardRangeAtom)
-export const useSetCardRange = () => useSetRecoilState(cardRangeAtom)
+export const useCardRangeSet = () => useSetRecoilState(cardRangeAtom)
 export const useCardRange = () => useRecoilState(cardRangeAtom)
 
 const visibleCardsSelector = selector<number>({
@@ -135,29 +135,51 @@ const visibleCardsSelector = selector<number>({
     return end - start
   },
 })
-export const useVisibleCards = () => useRecoilValue(visibleCardsSelector)
+export const useVisibleCardsCount = () => useRecoilValue(visibleCardsSelector)
 
-const cardActive = atom<string | false>({
+interface CardActive {
+  identity: string
+  type: 'hand' | 'table'
+}
+const cardActive = atom<CardActive | false>({
   key: 'activeCard',
   default: false,
 })
 
 export const useCardActive = () => useRecoilState(cardActive)
 export const useCardActiveValue = () => useRecoilValue(cardActive)
-export const useSetCardActive = () => useSetRecoilState(cardActive)
+export const useCardActiveSet = () => useSetRecoilState(cardActive)
 
-const tableParams = atom<{ size: number; position: Vec3; cardSize: number; subdivisions: number }>({
+interface TableParameters {
+  size: number
+  position: Vec3
+  cardSize: number
+  subdivisions: number
+  edges: {
+    left: number
+    right: number
+    top: number
+    bottom: number
+  }
+}
+const tableParams = atom<TableParameters>({
   key: 'tableParams',
   default: {
     size: 1,
     position: [0, 0, 0],
     cardSize: 0.15,
     subdivisions: 20,
+    edges: {
+      left: -0.5,
+      right: 0.5,
+      top: 0.5,
+      bottom: -0.5,
+    },
   },
 })
 
 export const useTableParamsValue = () => useRecoilValue(tableParams)
-export const useSetTableParams = () => useSetRecoilState(tableParams)
+export const useTableParamsSet = () => useSetRecoilState(tableParams)
 
 const tableCardList = atom<string[]>({
   key: 'tableCardList',
@@ -174,7 +196,7 @@ const tableCardParams = atomFamily<CardParams, string>({
 })
 
 export const useTableCardListValue = () => useRecoilValue(tableCardList)
-export const useAddTableCard = () => {
+export const useTableCardAdd = () => {
   return useRecoilCallback(
     ({ set }) =>
       (params: CardParams, identity: string) => {
@@ -188,7 +210,7 @@ export const useAddTableCard = () => {
 
 export const useTableCardParams = (identity: string) => useRecoilState(tableCardParams(identity))
 
-export const useAddHandCard = () => {
+export const useCardMoveTableHand = () => {
   return useRecoilCallback(
     ({ set }) =>
       (identity: string) => {

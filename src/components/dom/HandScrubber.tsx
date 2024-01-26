@@ -7,7 +7,7 @@ import {
   useCardRange,
   useCardRangeValue,
   useHandCardsListValue,
-  useSetCardRange,
+  useCardRangeSet,
 } from '@/src/state/cards'
 import { useSpring, animated } from '@react-spring/web'
 import { Bounds, useDrag } from '@use-gesture/react'
@@ -225,7 +225,7 @@ function CardButton({ identity, onClick }: { identity: string; onClick: MouseEve
 function TestThrottle() {
   const range = useCardRangeValue()
   const cards = useHandCardsListValue()
-  const setCardRange = useSetCardRange()
+  const setCardRange = useCardRangeSet()
   const [throt] = useState(() => throttler(100, 1000))
 
   return (
