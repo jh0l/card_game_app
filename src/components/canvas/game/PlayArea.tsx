@@ -249,7 +249,7 @@ function HandCard({ i, identity }: { i: number; identity: string }) {
         if (!SELECTED_CARD_STATE.active) return
 
         const state_y = SELECTED_CARD_STATE.active.offset.y
-        let x_ = SELECTED_CARD_STATE.active.offset.x * 0.9
+        let x_ = SELECTED_CARD_STATE.active.offset.x
         const pos = spring.position.get()
         const onTable = withinSquareBounds(pos, tableParams)
         // sometimes the card will get stuck at 0,0,0 - ignore this
@@ -259,7 +259,7 @@ function HandCard({ i, identity }: { i: number; identity: string }) {
         const zoom = onTable
           ? tableParams.cardSize
           : mapLinear(state_y, tableParams.edges.bottom + 2, tableParams.edges.bottom, 1, tableParams.cardSize)
-        let y_ = state_y + 1.75 + zoom * 0.9 + (onTable ? 0.4 : 0)
+        let y_ = state_y + 1.75 + zoom * 0.9
         const z = CARD_THICK * SELF.positionsIndex
         const scale = [zoom, zoom, zoom] as Vec3
         let position = [x_, y_, onTable ? tableParams.position[2] : -2 + z] as Vec3
@@ -309,7 +309,7 @@ function HandCard({ i, identity }: { i: number; identity: string }) {
     const [x, y, z] = spring.position.get()
     if (active && active.cardIndex === i) {
       const spring_x = x
-      if (active.offset.y < tableParams.edges.bottom) {
+      if (y < tableParams.edges.bottom) {
         // if spring_x is far enough away from POSITIONS[SELF.positionsIndex] then swap the cards index with the closest card
         const increment = Math.min(viewport.width / visibleCards, 1) / 1.5
         if (abs(spring_x - (target.position[0] - increment)) > increment) {
@@ -514,6 +514,7 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
         setDontMoveCamera(true)
         setDragging(true)
         setDepthOffset(10000)
+        setCardActive({ identity, type: 'table' })
       }
       if (last) {
         setDontMoveCamera(false)
@@ -524,6 +525,7 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
           onResolve: () => {
             setDragging(false)
             setDepthOffset(0)
+            setCardActive({ identity, type: 'table' })
           },
         })
       } else {
@@ -732,7 +734,6 @@ function CameraControls() {
     }
   }, [camControls, setCamControls])
   const handCardNone = !cardActive || cardActive.type !== 'hand'
-  console.log(camControls === 'enabled', handCardNone, !dontMoveCamera)
   return (
     <MapControls
       ref={controlRef}
