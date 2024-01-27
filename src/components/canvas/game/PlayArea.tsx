@@ -73,7 +73,7 @@ const liveDataAtom = atomFamily<string | null, string>({
   default: null,
 })
 
-function LiveText({ index, renderOrder: depth }: { index: string; renderOrder: number }) {
+function LiveText({ index, renderOrder: depth, position }: { index: string; renderOrder: number; position: Vec3 }) {
   const data = useRecoilValue(liveDataAtom(index))
   const isDark = true
   return (
@@ -86,7 +86,7 @@ function LiveText({ index, renderOrder: depth }: { index: string; renderOrder: n
       color={isDark ? 'white' : 'black'}
       anchorX='left'
       anchorY='bottom-baseline'
-      position={[-0.45, -0.2, CARD_THICK / 1.9]}
+      position={position}
     >
       {data}
     </Text>
@@ -142,7 +142,7 @@ function useCardMaterial(color: string) {
       reflectivity: 0.9,
       roughness: 0.1,
       clearcoat: 0.7,
-      clearcoatRoughness: 0.08,
+      clearcoatRoughness: 0.2,
       iridescence: 1,
       iridescenceIOR: 1.3,
       iridescenceThicknessRange: [250, 407],
@@ -363,6 +363,7 @@ function HandCard({ i, identity }: { i: number; identity: string }) {
   const bindType = bind()
   const meshDepth = DEPTH.HAND_CARDS * (i + (cardActive && cardActive.identity === identity ? 10 : 1))
   const textDepth = meshDepth + 1
+  const textOffSurface = -CARD_THICK
   return (
     <a.mesh {...spring} {...bindType} renderOrder={meshDepth} material={material}>
       <planeGeometry args={[1, 1.5, 1, 1]} />
@@ -379,7 +380,7 @@ function HandCard({ i, identity }: { i: number; identity: string }) {
       >
         {label}
       </Text>
-      <LiveText index={identity} renderOrder={textDepth} />
+      <LiveText index={identity} renderOrder={textDepth} position={[-0.45, -0.2, textOffSurface]} />
       <Text
         material-depthTest={false}
         material-depthWrite={false}
@@ -536,9 +537,15 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
         const y = mapLinear(distClamped, 0, OVER_DIST, params.position[1], position[1] - 0.25)
         const z = mapLinear(distClamped, 0, OVER_DIST, params.position[2], position[2] + 2)
         const scale = mapLinear(distClamped, 0, OVER_DIST, cardSize, zoomSize)
+        // rotate card in direction of mouse pointer in 3d space
+        const [mx, my] = xy
+        const rotation = [0, 0, 0] as Vec3
+        rotation[0] = mapLinear(my, 0, window.innerHeight, -0.3, 0.3)
+        rotation[1] = mapLinear(mx, 0, window.innerWidth, -0.3, 0.3)
         setSpring.start({
           position: [x, y, z],
           scale: [scale, scale, scale],
+          rotation,
         })
       }
     },
@@ -599,6 +606,7 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
   // @ts-ignore
   const moverBindType = moverBind()
   const showControls = cardActive && cardActive.identity === identity && !unmounting
+  const textOffSurface = -CARD_THICK
   return (
     <>
       <a.mesh
@@ -654,11 +662,11 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
           color={isDark ? 'white' : 'black'}
           anchorX='left'
           anchorY='top'
-          position={[-1 / 2.2, 1.5 / 2.2, CARD_THICK / 1.9]}
+          position={[-1 / 2.2, 1.5 / 2.2, textOffSurface]}
         >
           {label}
         </Text>
-        <LiveText index={identity} renderOrder={textDepth} />
+        <LiveText index={identity} renderOrder={textDepth} position={[-0.45, -0.2, textOffSurface]} />
         <Text
           renderOrder={textDepth}
           material-depthTest={false}
@@ -668,7 +676,7 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
           color={isDark ? 'white' : 'black'}
           anchorX='right'
           anchorY='bottom-baseline'
-          position={[-1 / -2.2, 1.5 / -2.2, CARD_THICK / 1.9]}
+          position={[-1 / -2.2, 1.5 / -2.2, textOffSurface]}
         >
           {label}
         </Text>
@@ -683,7 +691,7 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
           outlineColor={!isDark ? 'white' : 'black'}
           anchorX='center'
           anchorY='top-baseline'
-          position={[0, -0.28, CARD_THICK / 1.9]}
+          position={[0, -0.28, textOffSurface]}
         >
           Lorem Ipsum Lorem Ipsum
         </Text>
@@ -698,7 +706,7 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
           outlineColor={!isDark ? 'white' : 'black'}
           anchorX='center'
           anchorY='top-baseline'
-          position={[0, -0.5, CARD_THICK / 1.9]}
+          position={[0, -0.5, textOffSurface]}
         >
           {meshDepth}
         </Text>
