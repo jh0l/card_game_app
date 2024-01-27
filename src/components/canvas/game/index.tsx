@@ -37,51 +37,10 @@ export function GameView() {
   return (
     <View className='mx-auto h-full w-full max-w-screen-lg bg-black opacity-[0.14]'>
       <Common />
-      <GyroGroup>
-        <PerspectiveCamera makeDefault fov={40} position={[0, 0, 7]} />
-        <Suspense fallback={null}>
-          <Players />
-          <PlayArea />
-        </Suspense>
-      </GyroGroup>
+      <Suspense fallback={null}>
+        <Players />
+        <PlayArea />
+      </Suspense>
     </View>
   )
-}
-
-function GyroGroup({ children }: { children: React.ReactNode }) {
-  const groupRef = useRef<Group>()
-  const [permission, setPermission] = useState(false)
-  useEffect(() => {
-    if (!permission) {
-      // ask for device orientation permission on webkit and chrome and firefox and edge
-      if (
-        'requestPermission' in DeviceOrientationEvent &&
-        typeof DeviceOrientationEvent.requestPermission === 'function'
-      ) {
-        DeviceOrientationEvent.requestPermission()
-          .then((permissionState) => {
-            if (permissionState === 'granted') {
-              setPermission(true)
-            } else {
-              alert('Permission denied')
-            }
-          })
-          .catch(console.error)
-      }
-    }
-  }, [permission])
-  useEffect(() => {
-    if (!permission) return
-    const listener = (e: DeviceOrientationEvent) => {
-      if (!groupRef.current) return
-      const { alpha, beta, gamma } = e
-      if (alpha === null || beta === null || gamma === null) return
-      groupRef.current.rotation.set(beta * (Math.PI / 180), alpha * (Math.PI / 180), -gamma * (Math.PI / 180))
-    }
-    window.addEventListener('deviceorientation', listener)
-    return () => window.removeEventListener('deviceorientation', listener)
-  }, [permission])
-
-  // @ts-ignore
-  return <group ref={groupRef}>{children}</group>
 }
