@@ -2,7 +2,7 @@
 import { ThreeEvent, useFrame, useThree } from '@react-three/fiber'
 import { useDrag } from '@use-gesture/react'
 import { useSpring, a } from '@react-spring/three'
-import { MouseEventHandler, useEffect, useMemo, useRef, useState } from 'react'
+import { MouseEventHandler, useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { useTexture, Text, MapControls } from '@react-three/drei'
 import { crop, mapLinear, throttler } from '@/src/lib/utils'
 import * as THREE from 'three'
@@ -140,12 +140,12 @@ function useCardMaterial(color: string) {
       depthTest: false,
       depthWrite: false,
       reflectivity: 0.9,
-      roughness: 0.08,
+      roughness: 0.1,
       clearcoat: 0.7,
-      clearcoatRoughness: 0.05,
+      clearcoatRoughness: 0.08,
       iridescence: 1,
       iridescenceIOR: 1.3,
-      iridescenceThicknessRange: [100, 407],
+      iridescenceThicknessRange: [250, 407],
       sheenColor: color,
       ...textures,
     })
@@ -247,22 +247,21 @@ function HandCard({ i, identity }: { i: number; identity: string }) {
       // delay the drag to allow raycastboard to update
       const update = () => {
         if (!SELECTED_CARD_STATE.active) return
-
-        const state_y = SELECTED_CARD_STATE.active.offset.y
-        let x_ = SELECTED_CARD_STATE.active.offset.x
+        const offset = SELECTED_CARD_STATE.active.offset
+        const yPointer = offset.y
+        const xPointer = offset.x
         const pos = spring.position.get()
-        const onTable = withinSquareBounds(pos, tableParams)
+        const [x, y] = offset.toArray()
+        const onTable = withinSquareBounds([x, y + 2.15, 0], tableParams)
         // sometimes the card will get stuck at 0,0,0 - ignore this
-        const isZeroBug = pos[1].toFixed(2) === '0.00' && state_y.toFixed(2) === '0.00'
+        const isZeroBug = pos[1].toFixed(2) === '0.00' && yPointer.toFixed(2) === '0.00'
         const [_x, _y] = pos.map((x) => (x as any).toFixed(1))
         setDataThrottle && setData(`${_x}\n${_y}`)
-        const zoom = onTable
-          ? tableParams.cardSize
-          : mapLinear(state_y, tableParams.edges.bottom + 2, tableParams.edges.bottom, 1, tableParams.cardSize)
-        let y_ = state_y + 1.75 + zoom * 0.9
+        const zoom = onTable ? tableParams.cardSize : 1
+        let y_ = yPointer + 1.75 + zoom * 0.9
         const z = CARD_THICK * SELF.positionsIndex
         const scale = [zoom, zoom, zoom] as Vec3
-        let position = [x_, y_, onTable ? tableParams.position[2] : -2 + z] as Vec3
+        let position = [xPointer, y_, onTable ? tableParams.position[2] : -2 + z] as Vec3
         if (onTable) {
           // snap cardPosition to table grid based on tableParams.size and tableParams.position
           // card ration is 1.5/1, table ratio is 1/1
@@ -802,7 +801,9 @@ function Table() {
         <meshBasicMaterial map={planeTexture} ref={meshBasicMaterial} />
       </mesh>
       {tableCardsList.map((card, i) => (
-        <TableCard identity={card} key={card} i={i} />
+        <Suspense fallback={null} key={card}>
+          <TableCard identity={card} i={i} />
+        </Suspense>
       ))}
     </>
   )

@@ -26,7 +26,7 @@ import { View, Common } from '@/src/components/canvas/View'
 import PlayArea from '@/src/components/canvas/game/PlayArea'
 import Players from '@/src/components/canvas/game/Players'
 import HtmlPortal from '@/src/helpers/components/HtmlPortal'
-import { PerspectiveCamera } from '@react-three/drei'
+import { PerspectiveCamera, StatsGl } from '@react-three/drei'
 import { Group } from 'three'
 import { useFrame } from '@react-three/fiber'
 import { useSpring } from '@react-spring/three'
@@ -36,6 +36,7 @@ import { useSpring } from '@react-spring/three'
 export function GameView() {
   return (
     <View className='mx-auto h-full w-full max-w-screen-lg bg-black opacity-[0.14]'>
+      <StatsGl />
       <Common />
       <Suspense fallback={null}>
         <Players />
