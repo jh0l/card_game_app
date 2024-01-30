@@ -1,5 +1,6 @@
+import SpinnerLight from '@/src/components/dom/SpinnerLight'
 import dynamic from 'next/dynamic'
-const GameClient = dynamic(() => import('@/src/components/GameClient'), { ssr: false })
+const GameClient = dynamic(() => import('@/src/components/GameClient'), { ssr: false, loading: SpinnerLight })
 
 export default function Page() {
   return (
