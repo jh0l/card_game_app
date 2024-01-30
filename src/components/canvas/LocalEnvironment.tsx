@@ -20,76 +20,76 @@ const useOrientationPermission = () => useRecoilState(permissionAtom)
 const quaternion = new THREE.Quaternion()
 export function LocalEnvironment() {
   const three = useThree()
-  const [intensity] = useState(0.4)
-  const [quaternionState, setQuaternion] = useState<THREE.Quaternion>(quaternion)
-  const [gyroData, setGyroData] = useState('')
-  const [gyroState, setGyroEnabled] = useOrientationPermission()
+  const [intensity] = useState(0.66)
+  // const [quaternionState, setQuaternion] = useState<THREE.Quaternion>(quaternion)
+  // const [gyroData, setGyroData] = useState('')
+  // const [gyroState, setGyroEnabled] = useOrientationPermission()
   const pointer = useThree((state) => state.pointer)
   const texture = useLoader(RGBELoader, 'forest_slope_1k.hdr')
-  const meshRef = useRef<THREE.Mesh>()
-  const [[x, y, z], setYZ] = useState([0, Math.PI / 3, 0])
+  // const meshRef = useRef<THREE.Mesh>()
+  const [[x, y, z], setYZ] = useState([0, Math.PI / 2, 0])
   useEffect(() => {
-    if (gyroState === 'listen') return
+    //   if (gyroState === 'listen') return
     const id = setInterval(() => {
       // vertical
-      let _x = -Math.sin(Math.sin(pointer.y) * 0.01) * Math.PI * 1.5 + x * 0.9
+      let _x = -Math.sin(Math.sin(pointer.y - 100) * 0.01) * Math.PI
       // rotate in direction slowly coming to a limit after a while
       // horizontal
       let _y = y + Math.sin(pointer.x) * 0.003
       setYZ([_x, _y, 0])
-    }, 32)
+    }, 150)
     return () => clearInterval(id)
-  }, [gyroState, pointer.x, pointer.y, x, y, z])
-  useEffect(() => {
-    if (gyroState !== 'init') return
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-    if (false && isMobile && 'DeviceOrientationEvent' in window) {
-    } else {
-      setGyroEnabled('false')
-    }
-  }, [gyroState, setGyroEnabled])
+  }, [pointer.x, pointer.y, x, y, z])
+  // useEffect(() => {
+  //   if (gyroState !== 'init') return
+  //   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+  //   if (false && isMobile && 'DeviceOrientationEvent' in window) {
+  //   } else {
+  //     setGyroEnabled('false')
+  //   }
+  // }, [gyroState, setGyroEnabled])
 
-  useEffect(() => {
-    if (gyroState === 'listen') {
-      const controls = new DeviceOrientationControls()
-      const id = setInterval(() => {
-        if (meshRef.current) {
-          if (controls.update(quaternion)) {
-            meshRef.current.quaternion.copy(quaternion)
-            setQuaternion(quaternion.clone())
-            three.invalidate()
-          }
-        }
-      }, 32)
-      return () => {
-        clearInterval(id)
-        controls.dispose()
-      }
-    }
-  }, [gyroState, three])
-  const handlePermission = () => {
-    if ('DeviceOrientationEvent' in window) {
-      // @ts-ignore
-      if (typeof DeviceMotionEvent.requestPermission === 'function') {
-        // @ts-ignore
-        window.DeviceOrientationEvent.requestPermission().then((permissionState) => {
-          setGyroData(permissionState)
-          if (permissionState === 'granted') {
-            setGyroEnabled('listen')
-          } else {
-            setGyroEnabled('false')
-          }
-        })
-      } else {
-        setGyroEnabled('listen')
-      }
-    }
-  }
+  // useEffect(() => {
+  //   if (gyroState === 'listen') {
+  //     const controls = new DeviceOrientationControls()
+  //     const id = setInterval(() => {
+  //       if (meshRef.current) {
+  //         if (controls.update(quaternion)) {
+  //           meshRef.current.quaternion.copy(quaternion)
+  //           setQuaternion(quaternion.clone())
+  //           three.invalidate()
+  //         }
+  //       }
+  //     }, 32)
+  //     return () => {
+  //       clearInterval(id)
+  //       controls.dispose()
+  //     }
+  //   }
+  // }, [gyroState, three])
+  // const handlePermission = () => {
+  //   if ('DeviceOrientationEvent' in window) {
+  //     // @ts-ignore
+  //     if (typeof DeviceMotionEvent.requestPermission === 'function') {
+  //       // @ts-ignore
+  //       window.DeviceOrientationEvent.requestPermission().then((permissionState) => {
+  //         setGyroData(permissionState)
+  //         if (permissionState === 'granted') {
+  //           setGyroEnabled('listen')
+  //         } else {
+  //           setGyroEnabled('false')
+  //         }
+  //       })
+  //     } else {
+  //       setGyroEnabled('listen')
+  //     }
+  //   }
+  // }
 
   return (
     <>
       <Environment background={true} blur={0.5}>
-        <HtmlPortal>
+        {/* <HtmlPortal>
           {gyroState === 'compatible' && (
             <div
               className='pointer-events-auto absolute flex h-screen w-screen -translate-x-1/2 -translate-y-1/2 items-center justify-center bg-black/50'
@@ -99,8 +99,8 @@ export function LocalEnvironment() {
             </div>
           )}
           {gyroData && <div className='text-white'>{gyroData}</div>}
-        </HtmlPortal>
-        <mesh scale={10} position={[0, 0, 0]} rotation={[x, y, z]} quaternion={quaternionState}>
+        </HtmlPortal> */}
+        <mesh scale={10} position={[0, 0, 0]} rotation={[x, y, z]}>
           <sphereGeometry args={[4, 4, 4, 4]} />
           <meshBasicMaterial transparent opacity={intensity} map={texture} side={THREE.BackSide} toneMapped={false} />
         </mesh>

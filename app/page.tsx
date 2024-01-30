@@ -1,17 +1,20 @@
-import { GameView } from '@/src/components/canvas/game'
-import { HandScrubber } from '../src/components/dom/HandScrubber'
-import { TopRightMenu } from '../src/components/dom/TopRightMenu'
-import GameBar from '@/src/components/dom/GameBar'
+import dynamic from 'next/dynamic'
+const GameClient = dynamic(() => import('@/src/components/GameClient'), { ssr: false })
 
 export default function Page() {
   return (
-    <main className='relative h-[100dvh] select-none'>
-      <div className='absolute inset-0'>
-        <GameView />
-        <HandScrubber />
-        <TopRightMenu />
-        <GameBar />
-      </div>
-    </main>
+    <>
+      <main className='relative h-[100dvh]'>
+        <GameClient />
+      </main>
+      {/* <main className='relative h-[100dvh]'>
+        <div className='absolute inset-0 flex flex-col items-center justify-center gap-2'>
+          <h1 className='scroll-m-20 text-xl tracking-tight'>We&apos;re in the arena trying stuff.</h1>
+          <Button asChild>
+            <Link href='/testroom'>Try it out</Link>
+          </Button>
+        </div>
+      </main> */}
+    </>
   )
 }

@@ -24,9 +24,9 @@ import {
   useTableCardParams,
   useTableParamsValue,
   useVisibleCardsCount,
-} from '@/src/state/cards'
+} from '@/src/state/room'
 import { PosRot, Vec3 } from '@/src/lib/types'
-import { useCamControls, useDontMoveCamera, useSetCamControls, useSetDontMoveCamera } from '@/src/state/scene'
+import { useCamControls, useDontMoveCamera, useSetDontMoveCamera } from '@/src/state/scene'
 import { Button } from '../../ui/button'
 import HtmlPortal from '@/src/helpers/components/HtmlPortal'
 
@@ -38,7 +38,6 @@ const DEPTH = {
 const MASS = 1.3
 const FRICTION = 77
 const CARD_THICK = 0.05
-const FIELD_LINE = -1.4
 const TEXT = 0.2
 
 const { abs } = Math
@@ -124,34 +123,38 @@ function snapCardToTable(
   return [snappedX, snappedY, z] as Vec3
 }
 
+const noneMat = new THREE.MeshBasicMaterial({ color: 'black', transparent: true, opacity: 0 })
 const cardMaterialMap = new Map<string, THREE.MeshPhysicalMaterial>()
 function useCardMaterial(color: string) {
+  let res: THREE.MeshBasicMaterial | THREE.MeshPhysicalMaterial = noneMat
   const textures = useTexture({
     map: 'img/cards/melty-boy0-q25.png',
-    bumpMap: 'img/cards/melty-boy0-q25.png',
+    bumpMap: 'img/cards/melty-boy0-q25_bump.png',
     iridescenceThicknessMap: 'img/cards/melty-boy0-q25_clearcoat.png',
   })
   if (cardMaterialMap.has(color)) {
-    return cardMaterialMap.get(color)!
+    res = cardMaterialMap.get(color)!
   } else {
     const material = new THREE.MeshPhysicalMaterial({
       color: color,
       transparent: true,
       depthTest: false,
       depthWrite: false,
+      bumpScale: 0.5,
       reflectivity: 0.9,
       roughness: 0.1,
       clearcoat: 0.7,
-      clearcoatRoughness: 0.2,
-      iridescence: 1,
+      clearcoatRoughness: 0.1,
+      iridescence: 0.5,
       iridescenceIOR: 1.3,
-      iridescenceThicknessRange: [250, 407],
+      iridescenceThicknessRange: [280, 750],
       sheenColor: color,
       ...textures,
     })
     cardMaterialMap.set(color, material)
-    return material
+    res = material
   }
+  return [noneMat, noneMat, noneMat, noneMat, res, noneMat]
 }
 
 /** given a square at tableParams.position of width and height tableParams.size units across
@@ -168,7 +171,32 @@ function withinSquareBounds(position: Vec3, tableParams: { size: number; positio
   return xClamped === x && yClamped === y
 }
 
-function HandCard({ i, identity }: { i: number; identity: string }) {
+// BVH raycasting example
+// https://codesandbox.io/p/sandbox/drei-mesh-bvh-forked-y2z8r3
+const raycaster = new THREE.Raycaster()
+const originVec = new THREE.Vector3()
+const dirVec = new THREE.Vector3(0, 0, -1)
+
+function collisionDetect(position: Vec3, tableGroupRef: React.MutableRefObject<THREE.Group | null>): false | string[] {
+  if (tableGroupRef.current === null) return false
+  const [x, y, z] = position
+  originVec.set(x, y, z + CARD_THICK * 3)
+  raycaster.set(originVec, dirVec)
+  const intersects = raycaster.intersectObject(tableGroupRef.current, false)
+  if (intersects.filter((x) => x.object.name !== 'table').length > 0) {
+    debugger
+  }
+  return false
+}
+function HandCard({
+  i,
+  identity,
+  tableGroupRef,
+}: {
+  i: number
+  identity: string
+  tableGroupRef: React.MutableRefObject<THREE.Group | null>
+}) {
   const addTableCard = useTableCardAdd()
   const tableParams = useTableParamsValue()
   const [cardActive, setCardActive] = useCardActive()
@@ -193,7 +221,7 @@ function HandCard({ i, identity }: { i: number; identity: string }) {
     const increment = Math.min(width / visibleCards, 1)
     const x = (i - (visibleCards - 1) / 2) * increment
     const z = -2.9
-    const pos = [x, 0, z + CARD_THICK * i] as Vec3
+    const pos = [x, 0.07, z + CARD_THICK * i] as Vec3
     POSITIONS[i].position = pos
     setSpring.start({ position: pos, scale: [1, 1, 1], rotation: defaultRotation })
   }, [i, viewport.width, setSpring, recalculate, visibleCards])
@@ -212,63 +240,37 @@ function HandCard({ i, identity }: { i: number; identity: string }) {
       setSpring.start({ rotation: flippingRotation })
       SELF.current.rotation = flippingRotation
     }
-    if (last && SELECTED_CARD_STATE.active) {
-      setCardActive(false)
-      // if card is on field, add to table
-      const { offset } = SELECTED_CARD_STATE.active
 
-      const cardPosition = spring.position.get()
-      // if on field and within bounds of table
-      const onTable = withinSquareBounds(cardPosition, tableParams)
-      if (onTable) {
-        const position = snapCardToTable(cardPosition, tableParams)
-        addTableCard(
-          {
-            position,
-            rotation: [0, 0, 0],
-          },
-          identity,
-        )
-      } else {
-        // reorder card list to reflect new card order in transactions to prevent doubles
-        reorderHandCards((callback) => {
-          callback.order(CARD_STATE)
-        })
-        setRecal((x) => x + 1)
-        for (let i = 0; i < CARD_STATE.length; i++) {
-          CARD_STATE[i].positionsIndex = i
-        }
-        setSpring.start({ rotation: flippingRotation })
-        SELF.current.rotation = flippingRotation
-      }
-      SELECTED_CARD_STATE.active = false
-    }
     if (SELECTED_CARD_STATE.active) {
       // delay the drag to allow raycastboard to update
       const update = () => {
         if (!SELECTED_CARD_STATE.active) return
         const offset = SELECTED_CARD_STATE.active.offset
-        const yPointer = offset.y
-        const xPointer = offset.x
-        const pos = spring.position.get()
         const [x, y] = offset.toArray()
+        const pos = spring.position.get()
+        const isZeroBug = pos[1].toFixed(2) === '0.00' && y.toFixed(2) === '0.00'
+        if (isZeroBug) return
         const onTable = withinSquareBounds([x, y + 2.15, 0], tableParams)
         // sometimes the card will get stuck at 0,0,0 - ignore this
-        const isZeroBug = pos[1].toFixed(2) === '0.00' && yPointer.toFixed(2) === '0.00'
         const [_x, _y] = pos.map((x) => (x as any).toFixed(1))
-        setDataThrottle && setData(`${_x}\n${_y}`)
-        const zoom = onTable ? tableParams.cardSize : 1
-        let y_ = yPointer + 1.75 + zoom * 0.9
+        const zoom = onTable
+          ? tableParams.cardSize
+          : mapLinear(y + 2.15, tableParams.edges.bottom - 1.1, tableParams.edges.bottom - 1.8, 1, 2)
+        let y_ = zoom > 1 ? zoom - 0.6 : y + 1.75 + zoom * 0.9
         const z = CARD_THICK * SELF.positionsIndex
+        setDataThrottle() && setData(`y:${y_.toFixed(2)}\n${zoom.toFixed(2)}`)
         const scale = [zoom, zoom, zoom] as Vec3
-        let position = [xPointer, y_, onTable ? tableParams.position[2] : -2 + z] as Vec3
+        let position = [x, y_, onTable ? tableParams.position[2] + CARD_THICK : -2 + z] as Vec3
         if (onTable) {
           // snap cardPosition to table grid based on tableParams.size and tableParams.position
           // card ration is 1.5/1, table ratio is 1/1
           // card is 1/10th of table size, top left of card should snap to grid of 20x20 on table
           position = snapCardToTable(position, tableParams)
+          // raycast to see if card is colliding with a card in the tableGroupRef
+          const target = collisionDetect(pos, tableGroupRef)
+          if (target) setData('COLLISION!!!!')
         }
-        if (!isSame(SELF.current.position, position) && !isZeroBug) {
+        if (!isSame(SELF.current.position, position)) {
           setSpring.start({
             position,
           })
@@ -289,12 +291,38 @@ function HandCard({ i, identity }: { i: number; identity: string }) {
           })
           SELF.current.rotation = zVec
         }
+        if (last) {
+          setCardActive(false)
+          if (onTable) {
+            addTableCard(
+              {
+                position,
+                rotation: [0, 0, 0],
+              },
+              identity,
+            )
+          } else {
+            // reorder card list to reflect new card order in transactions to prevent doubles
+            reorderHandCards((callback) => {
+              callback.order(CARD_STATE)
+            })
+            setRecal((x) => x + 1)
+            for (let i = 0; i < CARD_STATE.length; i++) {
+              CARD_STATE[i].positionsIndex = i
+            }
+            setSpring.start({ rotation: flippingRotation })
+            SELF.current.rotation = flippingRotation
+          }
+          SELECTED_CARD_STATE.active = false
+        }
       }
       if (first) {
         SELECTED_CARD_STATE.active.first = update
       } else {
         update()
-        SELECTED_CARD_STATE.active.first = undefined
+        if (SELECTED_CARD_STATE.active) {
+          SELECTED_CARD_STATE.active.first = undefined
+        }
       }
     }
   })
@@ -308,7 +336,7 @@ function HandCard({ i, identity }: { i: number; identity: string }) {
     const [x, y, z] = spring.position.get()
     if (active && active.cardIndex === i) {
       const spring_x = x
-      if (y < tableParams.edges.bottom) {
+      if (active.offset.y + 2.15 < tableParams.edges.bottom) {
         // if spring_x is far enough away from POSITIONS[SELF.positionsIndex] then swap the cards index with the closest card
         const increment = Math.min(viewport.width / visibleCards, 1) / 1.5
         if (abs(spring_x - (target.position[0] - increment)) > increment) {
@@ -318,8 +346,8 @@ function HandCard({ i, identity }: { i: number; identity: string }) {
             abs(curr[0] - spring_x) < abs(prev[0] - spring_x) ? curr : prev,
           )
           const targetCard = CARD_STATE.find((x) => x.positionsIndex === closestIndex)
-          const dist = abs(SELF.positionsIndex - targetCard?.positionsIndex)
-          if (dist === 1) {
+          const dist = abs(SELF.positionsIndex - (targetCard?.positionsIndex || -1))
+          if (targetCard && dist === 1) {
             const temp = SELF.positionsIndex
             SELF.positionsIndex = closestIndex
             targetCard.positionsIndex = temp
@@ -365,8 +393,10 @@ function HandCard({ i, identity }: { i: number; identity: string }) {
   const textDepth = meshDepth + 1
   const textOffSurface = -CARD_THICK
   return (
-    <a.mesh {...spring} {...bindType} renderOrder={meshDepth} material={material}>
-      <planeGeometry args={[1, 1.5, 1, 1]} />
+    <a.mesh {...(spring as any)} {...bindType} renderOrder={meshDepth} material={material}>
+      {/* <planeGeometry args={[1, 1.5, 1, 1]} /> */}
+      <boxGeometry args={[1, 1.5, CARD_THICK]} />
+
       <Text
         material-depthTest={false}
         material-depthWrite={false}
@@ -413,16 +443,14 @@ function HandCard({ i, identity }: { i: number; identity: string }) {
   )
 }
 
-function Hand() {
+function Hand({ tableGroupRef }: { tableGroupRef: React.MutableRefObject<THREE.Group | null> }) {
   const cardRange = useCardRangeValue()
   const cardsList = useHandCardsListValue()
-  if (cardsList.indexOf(undefined) !== -1) {
-    debugger
-  }
+
   return (
     <>
       {cardsList.slice(cardRange[0], cardRange[1]).map((identity, i) => (
-        <HandCard identity={identity} i={i} key={identity} />
+        <HandCard identity={identity} i={i} key={identity} tableGroupRef={tableGroupRef} />
       ))}
     </>
   )
@@ -566,7 +594,8 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
   const isDark = true // luma < 0.2
   const label = identity
   const meshDepth =
-    DEPTH.TABLE_CARDS * (i + 1) * (cardActive && cardActive.identity === identity ? 1000 : 1) + depthOffset
+    DEPTH.TABLE_CARDS * (i + 1) * (!unmounting && cardActive && cardActive.identity === identity ? 1000 : 1) +
+    depthOffset
   const textDepth = meshDepth + 1
   const onClick = async (event: ThreeEvent<MouseEvent>) => {
     // check that this is the object with the highest renderOrder
@@ -587,7 +616,7 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
 
     setSpring.start({
       position,
-      scale: [0.5, 0.5, 0.5],
+      scale: [1, 1, 1],
       // rotation: [0, 1, 0],
 
       onResolve: () => {
@@ -617,6 +646,9 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
         renderOrder={meshDepth}
         name={`table-card-${identity}`}
       >
+        {/* <planeGeometry args={[1, 1.5, 1, 1]} /> */}
+        <boxGeometry args={[1, 1.5, CARD_THICK]} />
+
         <group position={[0, size * 0.15, 0]}>
           {showControls && (
             <HtmlPortal>
@@ -629,7 +661,12 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
           )}
         </group>
         {showControls && !dragging && (
-          <a.mesh renderOrder={meshDepth * 10} {...moverBindType} position={[0, -1, 0]} name={`${identity}-grabby`}>
+          <a.mesh
+            renderOrder={meshDepth * 10}
+            {...(moverBindType as any)}
+            position={[0, -1, 0]}
+            name={`${identity}-grabby`}
+          >
             <planeGeometry args={[0.5, 0.5, 1, 1]} />
             <meshStandardMaterial
               map={handTex}
@@ -639,7 +676,7 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
               depthTest={false}
               depthWrite={false}
             />
-            <a.mesh renderOrder={meshDepth * 10} {...moverBindType}>
+            <a.mesh renderOrder={meshDepth * 10} {...(moverBindType as any)}>
               <circleGeometry args={[0.4]} />
               <meshBasicMaterial
                 color='white'
@@ -652,7 +689,7 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
             </a.mesh>
           </a.mesh>
         )}
-        <planeGeometry args={[1, 1.5, 1, 1]} />
+
         <Text
           renderOrder={textDepth}
           material-depthTest={false}
@@ -719,7 +756,7 @@ function CameraControls() {
   const dontMoveCamera = useDontMoveCamera()
   const cardActive = useCardActiveValue()
   const [camControls, setCamControls] = useCamControls()
-  const controlRef = useRef<THREELIB.MapControls>()
+  const controlRef = useRef<THREELIB.MapControls>(null)
   const camera = useThree((three) => three.camera)
   useEffect(() => {
     // modify the PresentationControls props to pan on the XY plane instead of the XZ plane
@@ -761,7 +798,7 @@ function Table() {
   /* stretch uv map of texture vertically so image repeats twice */
   const subdivisions = 0.9
   useEffect(() => {
-    if (meshBasicMaterial.current) {
+    if (meshBasicMaterial.current && meshBasicMaterial.current.map) {
       // repeat texture
       meshBasicMaterial.current.map.wrapS = THREE.RepeatWrapping
       meshBasicMaterial.current.map.wrapT = THREE.RepeatWrapping
@@ -840,13 +877,16 @@ export default function PlayArea() {
   const scale = 3.39
   const width = 5
   const height = 5
+  const tableGroupRef = useRef<THREE.Group>(null)
   return (
     <>
       {/* <Html className='pointer-events-none w-96 font-mono'></Html> */}
       <CameraControls />
       <group position={[0, -2, 0]} rotation={[0, 0, 0]}>
-        <Table />
-        <Hand />
+        <group ref={tableGroupRef}>
+          <Table />
+        </group>
+        <Hand tableGroupRef={tableGroupRef} />
         <mesh ref={raycastBoard} position={[0, height / 2, -3]}>
           <planeGeometry args={[width * 2, height * 2, 1, 1]} />
           {/* transparent material */}

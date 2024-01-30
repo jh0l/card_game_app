@@ -25,22 +25,20 @@ const Hand = dynamic(() => import('@/src/components/canvas/game/Hand').then((mod
 import { View, Common } from '@/src/components/canvas/View'
 import PlayArea from '@/src/components/canvas/game/PlayArea'
 import Players from '@/src/components/canvas/game/Players'
-import HtmlPortal from '@/src/helpers/components/HtmlPortal'
-import { PerspectiveCamera, StatsGl } from '@react-three/drei'
-import { Group } from 'three'
-import { useFrame } from '@react-three/fiber'
-import { useSpring } from '@react-spring/three'
+import { Bvh, StatsGl } from '@react-three/drei'
 
 //*/
 
 export function GameView() {
   return (
     <View className='mx-auto h-full w-full max-w-screen-lg bg-black opacity-[0.14]'>
-      <StatsGl />
+      <StatsGl horizontal={false} logsPerSecond={5} className='translate-y-[50px]' />
       <Common />
       <Suspense fallback={null}>
         <Players />
-        <PlayArea />
+        <Bvh firstHitOnly>
+          <PlayArea />
+        </Bvh>
       </Suspense>
     </View>
   )

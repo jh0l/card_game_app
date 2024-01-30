@@ -1,3 +1,12 @@
+const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST || '127.0.0.1:1999'
+const PARTYKIT_PROTOCOL =
+  PARTYKIT_HOST?.startsWith('localhost') ||
+  PARTYKIT_HOST?.startsWith('127.0.0.1') ||
+  PARTYKIT_HOST?.startsWith('192.168.1.120')
+    ? 'http'
+    : 'https'
+const PARTYKIT_URL = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}`
+
 const withBundleAnalyzer = require('@next/bundle-analyzer')({
   enabled: process.env.ANALYZE === 'true',
 })
@@ -22,6 +31,15 @@ const nextConfig = {
     remotePatterns: [{ hostname: 'cdn.discordapp.com' }],
     imageSizes: [56],
   },
+  rewrites: async () => [
+    {
+      // forward room authentication request to partykit
+      source: '/party/:roomId/auth',
+      // include connection id in the query
+      has: [{ type: 'query', key: '_pk', value: '(?<pk>.*)' }],
+      destination: PARTYKIT_URL + '/party/:roomId/auth?_pk=:pk',
+    },
+  ],
   webpack(config, { isServer }) {
     if (!isServer) {
       // We're in the browser build, so we can safely exclude the sharp module

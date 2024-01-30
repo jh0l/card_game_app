@@ -1,8 +1,10 @@
-import { Layout } from '@/src/components/dom/Layout'
 import '@/app/theme.css'
 import '@/app/global.css'
 import { Rubik as FontSans } from 'next/font/google'
 import { cn } from '@/src/lib/utils'
+import { Suspense } from 'react'
+
+import ClientLayout from '@/src/components/dom/ClientLayout'
 
 export const fontSans = FontSans({
   subsets: ['latin'],
@@ -27,5 +29,27 @@ export default function RootLayout({ children }) {
         <Layout>{children}</Layout>
       </body>
     </html>
+  )
+}
+
+const Layout = ({ children }) => {
+  return (
+    <Suspense
+      fallback={
+        <div
+          style={{
+            position: 'relative',
+            width: ' 100%',
+            height: '100%',
+            overflow: 'auto',
+            touchAction: 'auto',
+          }}
+        >
+          {children}
+        </div>
+      }
+    >
+      <ClientLayout>{children}</ClientLayout>
+    </Suspense>
   )
 }

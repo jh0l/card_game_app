@@ -1,5 +1,5 @@
 'use client'
-import { useTableParamsValue } from '@/src/state/cards'
+import { useTableParamsValue } from '@/src/state/room'
 import { Dog, Duck } from '@/src/components/canvas/Examples'
 
 export default function Players() {

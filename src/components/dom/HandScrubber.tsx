@@ -8,7 +8,7 @@ import {
   useCardRangeValue,
   useHandCardsListValue,
   useCardRangeSet,
-} from '@/src/state/cards'
+} from '@/src/state/room'
 import { useSpring, animated } from '@react-spring/web'
 import { Bounds, useDrag } from '@use-gesture/react'
 import Image from 'next/image'
@@ -27,14 +27,16 @@ export function HandScrubber() {
   const [cardRange, setCardRange] = useCardRange()
   const [calculateBounds, setCalculateBounds] = useState(0)
   const [bounds, setBounds] = useState<BoundsExt>({ mid: 0, width: 0, cardWidth: 0, offset: 0 })
-  const parentRef = useRef<HTMLDivElement>()
-  const cardsRef = useRef<HTMLDivElement>()
+  const parentRef = useRef<HTMLDivElement>(null)
+  const cardsRef = useRef<HTMLDivElement>(null)
   const [resizeObserver] = useState(() => {
     try {
       return new ResizeObserver(() => {
         setCalculateBounds((x) => x + 1)
       })
-    } catch (e) {}
+    } catch (e) {
+      throw new Error("ResizeObserver doesn't exist")
+    }
   })
   useEffect(() => {
     parentRef.current && resizeObserver.observe(parentRef.current)
@@ -82,7 +84,7 @@ export function HandScrubber() {
     // set the scrubber to the correct position when the card range changes
     const width = Math.min(Math.min(MAX_VISIBLE_CARDS, cards.length) * bounds.cardWidth, bounds.width)
     const cardWidth = bounds.cardWidth
-    const x = bounds.left + cardRange[0] * cardWidth
+    const x = (bounds.left || 0) + cardRange[0] * cardWidth
     setSpring.start({ x, width })
   }, [cardRange, bounds, setSpring, cards.length, spring.x])
   useEffect(() => {
@@ -91,14 +93,14 @@ export function HandScrubber() {
     lastSelfEvent.time = Date.now()
     let _x = spring.x.get()
     // if current _x is before the left bound, move it to the left bound
-    if (_x < bounds.left) {
-      _x = bounds.left
-    } else if (_x > bounds.right - width) {
-      _x = bounds.right - width
+    if (_x < (bounds.left || 0)) {
+      _x = bounds.left || 0
+    } else if (_x > (bounds.right || 0) - width) {
+      _x = (bounds.right || 0) - width
     } else {
       // snap _x to the nearest card
       const cardWidth = bounds.cardWidth
-      const left = bounds.left
+      const left = bounds.left || 0
       _x = Math.round((_x - left) / cardWidth) * cardWidth + left
     }
     setSpring.start({
@@ -107,21 +109,23 @@ export function HandScrubber() {
       opacity: 1,
       config: { mass: 1.3, friction: 100, tension: 4000, clamp: true },
     })
+    const left = bounds.left || 0
     const cardWidth = bounds.cardWidth
     // set the card range to the cards that are visible in the scrubber
-    const start = Math.round((_x - bounds.left) / cardWidth)
-    const end = Math.round((_x + width - bounds.left) / cardWidth)
+    const start = Math.round((_x - left) / cardWidth)
+    const end = Math.round((_x + width - left) / cardWidth)
     setCardRange([start, end])
   }, [bounds, setSpring, spring.x, cards.length, setCardRange])
   const bind = useDrag(({ xy: [xE], event }) => {
+    const left = bounds.left || 0
+    const right = bounds.right || 0
     event.stopPropagation()
     const width = spring.width.get()
     let x = xE - bounds.offset - width / 2 // limit x to bounds of left and right
-    x = Math.max(x, bounds.left)
-    x = Math.min(x, bounds.right - width)
+    x = Math.max(x, left)
+    x = Math.min(x, right - width)
     // snap so that the edges of the scrubber align with the edges of the cards
     const cardWidth = bounds.cardWidth
-    const left = bounds.left
     x = Math.round((x - left) / cardWidth) * cardWidth + left
     const update = (x: number) => {
       const start = Math.round((x - left) / cardWidth)
@@ -149,11 +153,12 @@ export function HandScrubber() {
     e.stopPropagation()
     let x = e.currentTarget.getBoundingClientRect().left - bounds.offset - spring.width.get() / 2
     const width = Math.min(Math.min(MAX_VISIBLE_CARDS, cards.length) * bounds.cardWidth, bounds.width)
-    x = Math.max(x, bounds.left)
-    x = Math.min(x, bounds.right - width)
+    const left = bounds.left || 0
+    const right = bounds.right || 0
+    x = Math.max(x, left)
+    x = Math.min(x, right - width)
     // snap so that the edges of the scrubber align with the edges of the cards
     const cardWidth = bounds.cardWidth
-    const left = bounds.left
     x = Math.round((x - left) / cardWidth) * cardWidth + left
     const update = (x: number) => {
       const start = Math.round((x - left) / cardWidth)
