@@ -14,7 +14,6 @@ import { Check, ChevronsUpDown } from 'lucide-react'
 import { cn } from '@/src/lib/utils'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/src/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/src/components/ui/popover'
-import Image from 'next/image'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/src/components/ui/select'
 import {
   CardDefinitionType,
@@ -26,12 +25,10 @@ import {
   useImageDef,
   useImageDefinitionIds,
   useImageDefinitionIdsList,
-  useImageDefinitionIdsSet,
   useImageDefinitionSet,
 } from '@/src/state/assets'
 import { atomFamily, useRecoilState } from 'recoil'
 import { localStorageEffect } from '@/src/state/effects'
-import SpinnerLight from '@/src/components/dom/SpinnerLight'
 
 export default function Page() {
   // const Settings = true
@@ -124,7 +121,7 @@ const expandedFamily = atomFamily<string, string>({
   default: '',
   effects: (key) => [localStorageEffect(key + '_expanded')],
 })
-export const useExpanded = (id: string) => useRecoilState(expandedFamily(id))
+const useExpanded = (id: string) => useRecoilState(expandedFamily(id))
 
 function CardDefinition({ id, handleDelete }: { id: string; handleDelete: () => void }) {
   const [cardDefinitionState, setCardDefinition] = useCardDefinition(id)
@@ -392,7 +389,7 @@ function TableManager() {
   return null
 }
 
-export function ImageDefSelector({
+function ImageDefSelector({
   value,
   setValue,
 }: {
