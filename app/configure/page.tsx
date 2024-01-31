@@ -23,11 +23,15 @@ import {
   useCardDefinition,
   useCardDefinitionList,
   useCardDefinitionsListSet,
+  useImageDef,
+  useImageDefinitionIds,
+  useImageDefinitionIdsList,
   useImageDefinitionIdsSet,
   useImageDefinitionSet,
 } from '@/src/state/assets'
 import { atomFamily, useRecoilState } from 'recoil'
 import { localStorageEffect } from '@/src/state/effects'
+import SpinnerLight from '@/src/components/dom/SpinnerLight'
 
 export default function Page() {
   // const Settings = true
@@ -62,13 +66,13 @@ function CardManager() {
   }
   return (
     <div className='pointer-events-none absolute inset-0 z-20 flex flex-col items-end justify-end p-2'>
-      <div className='pointer-events-auto flex h-4/5 w-full max-w-lg flex-col gap-2 overflow-y-scroll'>
+      <div className='pointer-events-auto flex h-[90%] w-full max-w-lg flex-col gap-2 overflow-y-scroll'>
         <div className='flex w-full flex-col gap-2 rounded border bg-background p-2'>
           <h2 className='text-lg font-bold'>Hand</h2>
           <HandCard />
           <AddHandCard />
         </div>
-        <div className='flex w-full flex-col gap-2 rounded border bg-background p-3'>
+        <div className='flex w-full flex-col gap-4 rounded border bg-background p-3'>
           <h2 className='text-lg font-bold'>Card Definitions</h2>
           {cardDefIds.map((id) => (
             <CardDefinition key={id} id={id} handleDelete={() => handleDelete(id)} />
@@ -89,11 +93,7 @@ function CardManager() {
   )
 }
 function HandCard() {
-  return (
-    <div className='grid w-full items-center gap-1.5'>
-      <ComboboxDemo />
-    </div>
-  )
+  return <div className='grid w-full items-center gap-1.5'>{/* <ImageDefSelector /> */}</div>
 }
 function AddHandCard() {
   return (
@@ -150,7 +150,7 @@ function CardDefinition({ id, handleDelete }: { id: string; handleDelete: () => 
     setCardDefinition((prev) => ({ ...prev, iridescentMap }))
   }
   return (
-    <div className='relative grid w-full items-center gap-3 rounded border p-2'>
+    <div className='relative grid w-full items-center gap-3 rounded border bg-gray-700/20 p-2'>
       <span className='absolute top-1 flex w-full justify-center font-mono text-xs text-white/20'>id: {id}</span>
       <div>
         <Label htmlFor='name'>Name</Label>
@@ -233,16 +233,22 @@ function ImageHandler({
   const [newName, setNewName] = React.useState('')
   const [newType, setNewType] = React.useState<'url' | 'db'>('db')
   const [newImageObj, setNewImageObj] = React.useState<{ src: string; file?: File } | null>(null)
-  const setimageDefIds = useImageDefinitionIdsSet()
+  const [imageDefIds, setimageDefIds] = useImageDefinitionIds()
   const setNewImage = useImageDefinitionSet(newId || '')
   const newImage = React.useMemo(() => {
-    if (newImageObj && 'src' in newImageObj) return newImageObj
     if (!newImageObj) return null
-    return {
-      src: URL.createObjectURL(newImageObj),
-      file: newImageObj,
+    if (!newName) {
+      setNewName(newImageObj?.file?.name || newImageObj.src.split('/').pop() || 'untitled')
     }
-  }, [newImageObj])
+    if (newImageObj.file) {
+      console.log('newImageObj.file', newImageObj.file)
+      return {
+        src: URL.createObjectURL(newImageObj.file),
+        file: newImageObj,
+      }
+    }
+    return newImageObj
+  }, [newImageObj, newName])
   const handleNewImageDefinition = () => {
     // use `newId` for image id
     // save image file/url to image atomFamily backed by indexedDB
@@ -252,7 +258,17 @@ function ImageHandler({
     setNewImage({
       id: newId,
       name: newName,
-      file: newType === 'db' ? file?.file : undefined,
+      file:
+        newType === 'db' && file?.file
+          ? {
+              name: file.file.name,
+              size: file.file.size,
+              type: file.file.type,
+              lastModified: file.file.lastModified,
+              lastModifiedDate: new Date(file.file.lastModified),
+              blob: new Blob([file.file], { type: file.file.type }),
+            }
+          : undefined,
       url: newType === 'url' ? newImageObj.src : undefined,
     })
     // save image id to image definition list
@@ -266,11 +282,11 @@ function ImageHandler({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewImageObj((e.target.files && e.target.files[0] && { src: '', file: e.target.files[0] }) || null)
   }
-
+  console.log(image)
   return (
     <div className='flex flex-col gap-2'>
       <div className='flex gap-1'>
-        <ComboboxDemo />
+        <ImageDefSelector value={image} setValue={setImage} />
         <Button
           size='sm'
           variant={newId ? 'destructive' : 'outline'}
@@ -280,11 +296,61 @@ function ImageHandler({
         </Button>
       </div>
       <div
-        className={cn('grid items-center gap-1.5 rounded border bg-gray-500/10 p-2 shadow', {
+        className={cn('grid items-center gap-2 rounded border bg-gray-500/10 p-2 shadow', {
           'invisible h-0': !newId,
         })}
       >
-        <Label htmlFor='image_name'>Create New Image Definition</Label>
+        <Label>Create New Image Definition</Label>
+        <Input
+          className={cn({ 'invisible -my-5 h-0': newType !== 'db' })}
+          id='image'
+          type='file'
+          onChange={handleFileChange}
+        />
+        <div className={cn('flex items-center gap-1', { 'invisible -my-5 h-0': newType !== 'url' })}>
+          <Input id='image_url' type='text' placeholder='Image URL' />
+          <Button
+            size='sm'
+            onClick={() => {
+              try {
+                const input = document.getElementById('image_url') as HTMLInputElement
+                const url = new URL(input.value).toString()
+                setNewImageObj({ src: url })
+              } catch (e) {
+                alert(e)
+              }
+            }}
+          >
+            Load
+          </Button>
+        </div>
+        <div className='flex min-h-[64px] w-full items-center justify-center rounded border bg-gray-500/10'>
+          {newImage ? (
+            <a href={newImage.src} target='_blank' rel='noreferrer'>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={newImage.src}
+                width={64}
+                height={64}
+                alt='new image'
+                className='border border-dashed border-white'
+              />
+            </a>
+          ) : (
+            <span className='text-white'>👁👄👁</span>
+          )}
+        </div>
+        <Label htmlFor='image'>Source</Label>
+        <Select onValueChange={(e) => setNewType(e === 'url' ? e : 'db')}>
+          <SelectTrigger className='w-[180px]'>
+            <SelectValue placeholder='Local File' />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='db'>From File</SelectItem>
+            <SelectItem value='url'>From URL</SelectItem>
+          </SelectContent>
+        </Select>
+        <Label htmlFor='image_name'>Image Name</Label>
         <Input
           id='image_name'
           type='text'
@@ -292,40 +358,6 @@ function ImageHandler({
           onChange={(e) => setNewName(e.target.value)}
           value={newName}
         />
-        <Label htmlFor='image'>Source</Label>
-        <Select onValueChange={(e) => setNewType(e === 'url' ? e : 'db')}>
-          <SelectTrigger className='w-[180px]'>
-            <SelectValue placeholder='Local File' />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value='url'>From URL</SelectItem>
-            <SelectItem value='db'>From File</SelectItem>
-          </SelectContent>
-        </Select>
-        <Input
-          className={cn({ 'invisible h-0': newType !== 'db' })}
-          id='image'
-          type='file'
-          onChange={handleFileChange}
-        />
-        <Input
-          className={cn({ 'invisible h-0': newType !== 'url' })}
-          id='image'
-          type='text'
-          placeholder='Image URL'
-          onChange={(e) => {
-            setNewImageObj({ src: e.target.value })
-          }}
-        />
-        <div className='flex h-[64px] w-full items-center justify-center rounded border bg-gray-500/10'>
-          {newImage ? (
-            <a href={newImage.src} target='_blank' rel='noreferrer'>
-              <Image src={newImage.src} width={64} height={64} alt='new image' />
-            </a>
-          ) : (
-            <span className='text-white'>👁👄👁</span>
-          )}
-        </div>
         {newImage && (
           <Button onClick={handleNewImageDefinition} size='sm'>
             Save Image
@@ -346,7 +378,7 @@ function ImageDefinition() {
 }
 function CreateNewImageDefinition() {
   return (
-    <div className='tems-center grid w-full gap-1.5'>
+    <div className='grid w-full items-center gap-1.5'>
       <Button size='sm'>New Image</Button>
     </div>
   )
@@ -360,62 +392,103 @@ function TableManager() {
   return null
 }
 
-const frameworks = [
-  {
-    value: 'next.js',
-    label: 'Next.js',
-  },
-  {
-    value: 'sveltekit',
-    label: 'SvelteKit',
-  },
-  {
-    value: 'nuxt.js',
-    label: 'Nuxt.js',
-  },
-  {
-    value: 'remix',
-    label: 'Remix',
-  },
-  {
-    value: 'astro',
-    label: 'Astro',
-  },
-]
-
-export function ComboboxDemo() {
+export function ImageDefSelector({
+  value,
+  setValue,
+}: {
+  value?: ImageDefinitionIdType
+  setValue: (value: ImageDefinitionIdType) => void
+}) {
   const [open, setOpen] = React.useState(false)
-  const [value, setValue] = React.useState('')
-
+  const imageDefIds = useImageDefinitionIdsList()
+  const imageDefValue = useImageDef({ image_id: value?.image_id || '' })
+  console.log(imageDefValue)
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant='outline' role='combobox' aria-expanded={open} className='w-full justify-between' size='sm'>
-          {value ? frameworks.find((framework) => framework.value === value)?.label : 'Select Image...'}
+          {imageDefValue.url ? (
+            <div className='flex items-center justify-start gap-2'>
+              <Check className={'mr-2 h-4 w-4 opacity-100'} />
+              <a
+                href={imageDefValue.url}
+                target='_blank'
+                rel='noreferrer'
+                onClick={(e) => {
+                  e.stopPropagation()
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imageDefValue.url}
+                  alt='image definition image'
+                  width={32}
+                  height={32}
+                  className='border border-dashed border-white'
+                />
+              </a>
+              {imageDefValue.name}
+            </div>
+          ) : (
+            'Select Image...'
+          )}
           <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
         </Button>
       </PopoverTrigger>
       <PopoverContent className='w-full max-w-xs p-0'>
         <Command>
-          <CommandInput placeholder='Search framework...' />
-          <CommandEmpty>No framework found.</CommandEmpty>
+          {imageDefIds.length > 3 && <CommandInput placeholder='Search Images...' />}
+          {imageDefIds.length < 1 && <CommandInput placeholder='No images' />}
+          <CommandEmpty>No Images.</CommandEmpty>
           <CommandGroup>
-            {frameworks.map((framework) => (
-              <CommandItem
-                key={framework.value}
-                value={framework.value}
-                onSelect={(currentValue) => {
-                  setValue(currentValue === value ? '' : currentValue)
+            {imageDefIds.map((defId) => (
+              <ImageDefCommandItem
+                key={defId}
+                image_id={defId}
+                value={value?.image_id || ''}
+                setValue={(v) => {
+                  setValue({ image_id: v })
                   setOpen(false)
                 }}
-              >
-                <Check className={cn('mr-2 h-4 w-4', value === framework.value ? 'opacity-100' : 'opacity-0')} />
-                {framework.label}
-              </CommandItem>
+              />
             ))}
           </CommandGroup>
         </Command>
       </PopoverContent>
     </Popover>
+  )
+}
+
+function ImageDefCommandItem({
+  image_id,
+  setValue,
+  value,
+}: {
+  image_id: string
+  setValue: (value: string) => void
+  value: string
+}) {
+  const imageDef = useImageDef({ image_id })
+  return (
+    <CommandItem
+      key={image_id}
+      value={image_id}
+      onSelect={(currentValue) => {
+        setValue(currentValue)
+      }}
+    >
+      <div className='flex w-full justify-start gap-2'>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={imageDef.url}
+          width={32}
+          height={32}
+          alt='image definition image'
+          className='border-dashed border-white'
+        />
+        {imageDef.name}
+        <Check className={cn('mr-2 h-4 w-4', value === image_id ? 'opacity-100' : 'opacity-0')} />
+      </div>
+    </CommandItem>
   )
 }

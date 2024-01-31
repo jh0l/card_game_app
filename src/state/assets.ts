@@ -1,5 +1,6 @@
 import { atom, atomFamily, selectorFamily, useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
 import { IndexedDBEffect, localStorageEffect } from '@/src/state/effects'
+import { MIMEType } from 'util'
 
 export function randomId() {
   return Date.now().toString(36) + Math.random().toString(36)
@@ -56,13 +57,23 @@ const imageDefinitionIds = atom<string[]>({
   default: [],
   effects: [IndexedDBEffect('image_definition_ids', '')],
 })
+export const useImageDefinitionIdsList = () => useRecoilValue(imageDefinitionIds)
 export const useImageDefinitionIds = () => useRecoilState(imageDefinitionIds)
 export const useImageDefinitionIdsSet = () => useSetRecoilState(imageDefinitionIds)
+
+export interface BlobFile {
+  blob: Blob
+  lastModified: number
+  lastModifiedDate: Date
+  name: string
+  size: number
+  type: string
+}
 
 interface ImageDefinitionType {
   id: string
   name: string
-  file?: File
+  file?: BlobFile
   url?: string
 }
 
@@ -77,18 +88,18 @@ const imageDefinitionIndexed = atomFamily<ImageDefinitionType, string>({
 export const useImageDefinition = (id: string) => useRecoilState(imageDefinitionIndexed(id))
 export const useImageDefinitionSet = (id: string) => useSetRecoilState(imageDefinitionIndexed(id))
 
-export const imageDefinitionURLSelector = selectorFamily<{ url: string | null }, string>({
+export const imageDefinitionURLSelector = selectorFamily<ImageDefinitionType, string>({
   key: 'image_definition_url_selector',
   get:
     (id) =>
     ({ get }) => {
       const image = get(imageDefinitionIndexed(id))
-      if (image.url) return { url: image.url }
       if (image.file) {
-        const url = URL.createObjectURL(image.file)
-        return { url }
+        const url = URL.createObjectURL(image.file.blob)
+        console.log(url, image.file.blob.size)
+        return { ...image, url }
       }
-      return { url: null }
+      return { ...image, url: image.url }
     },
 })
-const useImageDef = (id: { image_id: string }) => useRecoilValue(imageDefinitionURLSelector(id.image_id))
+export const useImageDef = (id: { image_id: string }) => useRecoilValue(imageDefinitionURLSelector(id.image_id))

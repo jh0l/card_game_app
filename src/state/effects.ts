@@ -1,3 +1,4 @@
+'use client'
 import localforage from 'localforage'
 import { AtomEffect, DefaultValue } from 'recoil'
 
@@ -5,11 +6,11 @@ export const localStorageEffect: <T>(key: string) => AtomEffect<T> =
   (key: string) =>
   ({ setSelf, onSet }) => {
     try {
-      setSelf(new DefaultValue())
+      // setSelf(new DefaultValue())
       if (typeof localStorage === 'undefined') return
       const savedValue = localStorage.getItem(key)
       if (savedValue != null) {
-        setTimeout(() => setSelf(JSON.parse(savedValue)))
+        setTimeout(() => setSelf(JSON.parse(savedValue)), 16)
       }
     } catch (e) {
       console.warn('Unable to restore value for key:', key, e)
@@ -28,12 +29,18 @@ export const IndexedDBEffect: <T>(store: string, primary_key: string) => AtomEff
   store: string,
   primary_key: string,
 ) => {
-  return ({ setSelf, onSet }) => {
+  return ({ setSelf, onSet, trigger }) => {
     const key = store + ':' + primary_key
-    setSelf(new DefaultValue())
-    if (typeof localStorage === 'undefined') return
-
-    setSelf(localforage.getItem<any>(key).then((savedValue) => (savedValue != null ? savedValue : new DefaultValue())))
+    const loadPersisted = async () => {
+      if (typeof localStorage === 'undefined') return
+      const savedValue = await localforage.getItem(key)
+      if (savedValue != null) {
+        setSelf(savedValue as any)
+      }
+    }
+    if (trigger === 'get') {
+      loadPersisted()
+    }
 
     // Subscribe to state changes and persist them to localForage
     onSet((newValue, _, isReset) => {
