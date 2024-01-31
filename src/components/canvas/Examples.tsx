@@ -25,7 +25,7 @@ export const Blob = ({ route = '/', ...props }) => {
 }
 
 export const Logo = ({ route = '/blob', ...props }) => {
-  const mesh = useRef(null)
+  const mesh = useRef<THREE.Group>() as React.MutableRefObject<THREE.Group>
   const router = useRouter()
 
   const [hovered, hover] = useState(false)

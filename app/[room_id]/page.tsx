@@ -19,8 +19,9 @@ export default async function Page({
   params: { room_id: string }
   searchParams: { [key: string]: string | string[] | undefined }
 }) {
+  console.log('Page', params, searchParams)
   const sus = await getServerSession()
-  console.log(sus)
+  // console.log(sus)
   const user = sus && (sus.user as User | undefined)
 
   const { room_id } = params

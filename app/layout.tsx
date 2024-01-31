@@ -2,7 +2,6 @@ import '@/app/theme.css'
 import '@/app/global.css'
 import { Rubik as FontSans } from 'next/font/google'
 import { cn } from '@/src/lib/utils'
-import { Suspense } from 'react'
 
 import ClientLayout from '@/src/components/dom/ClientLayout'
 
@@ -33,23 +32,5 @@ export default function RootLayout({ children }) {
 }
 
 const Layout = ({ children }) => {
-  return (
-    <Suspense
-      fallback={
-        <div
-          style={{
-            position: 'relative',
-            width: ' 100%',
-            height: '100%',
-            overflow: 'auto',
-            touchAction: 'auto',
-          }}
-        >
-          {children}
-        </div>
-      }
-    >
-      <ClientLayout>{children}</ClientLayout>
-    </Suspense>
-  )
+  return <ClientLayout>{children}</ClientLayout>
 }

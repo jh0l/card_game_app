@@ -40,10 +40,10 @@ export default function NavBar() {
   }, [session.status, session.data])
 
   const components: NavComponent[] = useMemo(() => {
-    if (session.status === 'authenticated') {
-      const {
-        user: { image, email },
-      } = session.data!
+    if (session.status === 'authenticated' && session.data) {
+      const { user } = session.data
+      const image = (user && user.image) || ''
+      const email = (user && user.email) || ''
       return [
         {
           key: 'user_profile',

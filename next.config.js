@@ -28,7 +28,12 @@ const nextConfig = {
   // },
   reactStrictMode: true, // Recommended for the `pages` directory, default in `app`.
   images: {
-    remotePatterns: [{ hostname: 'cdn.discordapp.com' }],
+    remotePatterns: [
+      { hostname: 'cdn.discordapp.com' },
+      { hostname: 'localhost' },
+      { hostname: '192.168.1.120' },
+      { hostname: '72vcards.vercel.app' },
+    ],
     imageSizes: [56],
   },
   rewrites: async () => [
