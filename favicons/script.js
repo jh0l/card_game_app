@@ -1,9 +1,10 @@
-import * as favicons from 'favicons'
+import { favicons } from 'favicons'
 import fs from 'fs/promises'
+import path from 'path'
 
 const source = 'public/icons/crazy-bryce.png' // Source image(s). `string`, `buffer` or array of `string`
 const dest = 'public/' // Path for writing the favicons to. `string`
-/** favicons.FaviconOptions */
+/** FaviconOptions */
 const configuration = {
   path: '/favicons', // Path for overriding default icons path. `string`
   appName: '72vcards', // Your application's name. `string`
@@ -56,9 +57,15 @@ const configuration = {
     // more shortcuts objects
   ],
 }
-
+const htmlBasename = 'favicons.html'
 const response = await favicons(source, configuration)
 await fs.mkdir(dest, { recursive: true })
-await Promise.all(response.images.map(async (image) => await fs.writeFile(path.join(dest, image.name), image.contents)))
-await Promise.all(response.files.map(async (file) => await fs.writeFile(path.join(dest, file.name), file.contents)))
+await Promise.all(
+  response.images.map(
+    async (image) => image !== null && (await fs.writeFile(path.join(dest, image.name), image.contents)),
+  ),
+)
+await Promise.all(
+  response.files.map(async (file) => file !== null && (await fs.writeFile(path.join(dest, file.name), file.contents))),
+)
 await fs.writeFile(path.join(dest, htmlBasename), response.html.join('\n'))
