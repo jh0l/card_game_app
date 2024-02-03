@@ -10,81 +10,109 @@ import {
 } from 'recoil'
 import { Vec3 } from '../lib/types'
 import { createHash } from 'crypto'
+import { CardInstanceIdType, cardDefinitionIds, randomId } from './assets'
+import { IndexedDBEffect } from './effects'
 export const MAX_VISIBLE_CARDS = 7
 const CARDS = 20
 
 // comic book sticker colors
-export const COLORS: { color: string; luma: number }[] = [
-  '#4f4cf6',
-  '#4c69f6',
-  '#4c94f6',
-  '#4ccbf6',
-  '#4cf6e5',
-  '#4cf6b8',
-  '#4cf68c',
-  '#4cf65f',
-  '#4cf633',
-  '#6ef633',
-  '#9cf633',
-  '#c8f633',
-  '#f6f633',
-  '#f6db35',
-  '#ffc510',
-  '#ffb252',
-  '#f76433',
-  '#ee5454',
-  '#ee54a8',
-  '#ee54f0',
-  '#c454ee',
-  '#9b54ee',
-  '#7c54ee',
-  '#5e54ee',
-  '#545bee',
-].map((color) => ({ color, luma: luma(color) }))
+// export const COLORS: { color: string; luma: number }[] = [
+//   '#4f4cf6',
+//   '#4c69f6',
+//   '#4c94f6',
+//   '#4ccbf6',
+//   '#4cf6e5',
+//   '#4cf6b8',
+//   '#4cf68c',
+//   '#4cf65f',
+//   '#4cf633',
+//   '#6ef633',
+//   '#9cf633',
+//   '#c8f633',
+//   '#f6f633',
+//   '#f6db35',
+//   '#ffc510',
+//   '#ffb252',
+//   '#f76433',
+//   '#ee5454',
+//   '#ee54a8',
+//   '#ee54f0',
+//   '#c454ee',
+//   '#9b54ee',
+//   '#7c54ee',
+//   '#5e54ee',
+//   '#545bee',
+// ].map((color) => ({ color, luma: luma(color) }))
 
-function luma(color: string): number {
-  // https://www.w3.org/TR/AERT/#color-contrast
-  const rgb = parseInt(color.slice(1), 16)
-  const red = (rgb >> 16) & 0xff
-  const green = (rgb >> 8) & 0xff
-  const blue = (rgb >> 0) & 0xff
-  // returns the perceptive luminance of a color as a value between 0 and 1
-  const luma = 0.2126 * red + 0.7152 * green + 0.0722 * blue // per ITU-R BT.709
-  return luma / 255
-}
+// function luma(color: string): number {
+//   // https://www.w3.org/TR/AERT/#color-contrast
+//   const rgb = parseInt(color.slice(1), 16)
+//   const red = (rgb >> 16) & 0xff
+//   const green = (rgb >> 8) & 0xff
+//   const blue = (rgb >> 0) & 0xff
+//   // returns the perceptive luminance of a color as a value between 0 and 1
+//   const luma = 0.2126 * red + 0.7152 * green + 0.0722 * blue // per ITU-R BT.709
+//   return luma / 255
+// }
 
-function hash(str: string): number {
-  const hasher = createHash('md5')
-  const res = hasher.update(str).digest('hex')
-  return parseInt(res, 16)
-}
+// function hash(str: string): number {
+//   const hasher = createHash('md5')
+//   const res = hasher.update(str).digest('hex')
+//   return parseInt(res, 16)
+// }
 
-const cardColorSelector = selectorFamily<{ color: string; luma: number }, string>({
-  key: 'cardColor',
-  get: (identity) => () => {
-    if (identity === undefined) {
-      debugger
+// const cardColorSelector = selectorFamily<{ color: string; luma: number }, string>({
+//   key: 'cardColor',
+//   get: (identity) => () => {
+//     if (identity === undefined) {
+//       debugger
+//     }
+//     // convert identity to character code
+//     let id = parseInt(identity.toLowerCase(), 36)
+//     if (isNaN(id)) {
+//       id = Math.floor(Math.random() * COLORS.length)
+//     }
+//     const color = COLORS[id % COLORS.length]
+//     return color
+//   },
+// })
+
+// export const useCardColor = (identity: string) => useRecoilValue(cardColorSelector(identity))
+
+// const cards = Array.from({ length: CARDS })
+//   .fill(0)
+//   .map((_, i) => {
+//     return String(i + 1)
+//   })
+const randomCards = selector<CardInstanceIdType[]>({
+  get: ({ get }) => {
+    // get all card def ids
+    const cardIds = get(cardDefinitionIds)
+    if (cardIds.length === 0) {
+      return []
     }
-    // convert identity to character code
-    let id = parseInt(identity.toLowerCase(), 36)
-    if (isNaN(id)) {
-      id = Math.floor(Math.random() * COLORS.length)
-    }
-    const color = COLORS[id % COLORS.length]
-    return color
+    // if there are less than CARDS, fill up with ids from cardIds
+    const cards = Array.from({ length: CARDS })
+      .fill(0)
+      .map((_, i) => {
+        return cardIds[i % cardIds.length]
+      })
+    // shuffle cards
+    cards.sort(() => Math.random() - 0.5)
+    // add instance ids
+    const res = cards.map((id) => {
+      return {
+        def_id: id,
+        inst_id: randomId(),
+      }
+    })
+    return res
   },
+  key: 'randomCards',
 })
-
-export const useCardColor = (identity: string) => useRecoilValue(cardColorSelector(identity))
-
-const cards = Array.from({ length: CARDS })
-  .fill(0)
-  .map((_, i) => {
-    return String(i + 1)
-  })
-const handCardsList = atom<string[]>({
+const handCardsList = atom<CardInstanceIdType[]>({
   key: 'handsCardsList',
-  default: cards,
+  effects: [IndexedDBEffect('handCardIds', 'v2')],
 })
 
 export const useHandCardsListValue = () => useRecoilValue(handCardsList)
@@ -138,7 +166,7 @@ const visibleCardsSelector = selector<number>({
 export const useVisibleCardsCount = () => useRecoilValue(visibleCardsSelector)
 
 interface CardActive {
-  identity: string
+  identity: CardInstanceIdType
   type: 'hand' | 'table'
 }
 const cardActive = atom<CardActive | false>({
@@ -181,13 +209,13 @@ const tableParams = atom<TableParameters>({
 export const useTableParamsValue = () => useRecoilValue(tableParams)
 export const useTableParamsSet = () => useSetRecoilState(tableParams)
 
-const tableCardList = atom<string[]>({
+const tableCardList = atom<CardInstanceIdType[]>({
   key: 'tableCardList',
   default: [],
 })
 
 export type ObjectParams = { position: Vec3; rotation: Vec3 }
-const tableCardParams = atomFamily<ObjectParams, string>({
+const tableCardParams = atomFamily<ObjectParams, CardInstanceIdType>({
   key: 'tableCardParams',
   default: {
     position: [0, 0, 0],
@@ -199,7 +227,7 @@ export const useTableCardListValue = () => useRecoilValue(tableCardList)
 export const useTableCardAdd = () => {
   return useRecoilCallback(
     ({ set }) =>
-      (params: ObjectParams, identity: string) => {
+      (params: ObjectParams, identity: CardInstanceIdType) => {
         set(tableCardParams(identity), params)
         set(tableCardList, (list) => [...list, identity])
         set(handCardsList, (list) => list.filter((card) => card !== identity))
@@ -208,12 +236,12 @@ export const useTableCardAdd = () => {
   )
 }
 
-export const useTableCardParams = (identity: string) => useRecoilState(tableCardParams(identity))
+export const useTableCardParams = (identity: CardInstanceIdType) => useRecoilState(tableCardParams(identity))
 
 export const useCardMoveTableHand = () => {
   return useRecoilCallback(
     ({ set }) =>
-      (identity: string) => {
+      (identity: CardInstanceIdType) => {
         set(handCardsList, (list) => {
           // for some reason sometimes we get duplicates
           if (list.includes(identity)) {
@@ -231,7 +259,7 @@ export const useCardMoveTableHand = () => {
   )
 }
 
-const cardStackList = atom<string[]>({
+const cardStackList = atom<CardInstanceIdType[]>({
   key: 'cardStackList',
   default: [],
 })

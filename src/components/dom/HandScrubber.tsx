@@ -3,7 +3,6 @@ import { Button } from '@/src/components/ui/button'
 import { throttler } from '@/src/lib/utils'
 import {
   MAX_VISIBLE_CARDS,
-  useCardColor,
   useCardRange,
   useCardRangeValue,
   useHandCardsListValue,
@@ -185,7 +184,11 @@ export function HandScrubber() {
     <div className='absolute inset-x-5 bottom-[1%] z-10 mx-auto flex h-14 w-[90%] max-w-screen-md items-center justify-center rounded bg-white/0'>
       <div className='absolute inset-0 flex w-full justify-center rounded' ref={cardsRef}>
         {cards.map((key) =>
-          key === undefined ? <div key={key}></div> : <CardButton key={key} identity={key} onClick={onClick} />,
+          key === undefined ? (
+            <div key={key}></div>
+          ) : (
+            <CardButton key={key.inst_id} identity={key.def_id} onClick={onClick} />
+          ),
         )}
       </div>
       <div className='absolute inset-0 h-0 w-full' ref={parentRef}>
@@ -205,16 +208,9 @@ export function HandScrubber() {
 }
 
 function CardButton({ identity, onClick }: { identity: string; onClick: MouseEventHandler<HTMLButtonElement> }) {
-  const { color } = useCardColor(identity)
+  // const { color } = useCardColor(identity)
   return (
-    <button
-      className='relative max-h-14 w-full max-w-[37.333px]'
-      style={{
-        backgroundColor: `${color}66`,
-        // background opacity
-      }}
-      onClick={onClick}
-    >
+    <button className='relative max-h-14 w-full max-w-[37.333px]' onClick={onClick}>
       <Image
         src='/img/cards/melty-boy0-q25.png'
         alt='a playing card'

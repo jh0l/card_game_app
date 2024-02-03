@@ -11,6 +11,7 @@ const SignInWithRedirectBack = dynamic(() => import('@/src/components/dom/SignIn
   ssr: false,
   loading: SpinnerLight,
 })
+const GameClient = dynamic(() => import('@/src/components/GameClient'), { ssr: false })
 
 export default async function Page({
   params,
@@ -52,7 +53,14 @@ export default async function Page({
           <InitialiseRoom user={user} room_id={room_id} />
         </div>
       )}
-      {user && data.status === 'open' && <RoomPartySocket room_id={room_id} />}
+      {user && data.status === 'open' && (
+        <>
+          <RoomPartySocket room_id={room_id} />
+          <div className='absolute inset-0'>
+            <GameClient />
+          </div>
+        </>
+      )}
     </>
   )
 }

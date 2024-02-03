@@ -36,9 +36,9 @@ export function GameView() {
       <Common />
       <Suspense fallback={null}>
         <Players />
-        <Bvh firstHitOnly>
+        {/* <Bvh firstHitOnly>
           <PlayArea />
-        </Bvh>
+        </Bvh> */}
       </Suspense>
     </View>
   )

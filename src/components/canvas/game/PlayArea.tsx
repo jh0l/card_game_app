@@ -14,7 +14,6 @@ import {
   useTableCardAdd,
   useCardActive,
   useCardActiveValue,
-  useCardColor,
   useCardRangeValue,
   useHandCardsListValue,
   useHandCardsReorder,
@@ -29,6 +28,7 @@ import { PosRot, Vec3 } from '@/src/lib/types'
 import { useCamControls, useDontMoveCamera, useSetDontMoveCamera } from '@/src/state/scene'
 import { Button } from '../../ui/button'
 import HtmlPortal from '@/src/helpers/components/HtmlPortal'
+import { CardInstanceIdType } from '@/src/state/assets'
 
 const DEPTH = {
   TABLE_CARDS: 10,
@@ -67,12 +67,20 @@ function isSame(a: Vec3, b: Vec3) {
   return a[0] === b[0] && a[1] === b[1] && a[2] === b[2]
 }
 
-const liveDataAtom = atomFamily<string | null, string>({
+const liveDataAtom = atomFamily<string | null, CardInstanceIdType>({
   key: 'liveData',
   default: null,
 })
 
-function LiveText({ index, renderOrder: depth, position }: { index: string; renderOrder: number; position: Vec3 }) {
+function LiveText({
+  index,
+  renderOrder: depth,
+  position,
+}: {
+  index: CardInstanceIdType
+  renderOrder: number
+  position: Vec3
+}) {
   const data = useRecoilValue(liveDataAtom(index))
   const isDark = true
   return (
@@ -194,15 +202,15 @@ function HandCard({
   tableGroupRef,
 }: {
   i: number
-  identity: string
+  identity: CardInstanceIdType
   tableGroupRef: React.MutableRefObject<THREE.Group | null>
 }) {
   const addTableCard = useTableCardAdd()
   const tableParams = useTableParamsValue()
   const [cardActive, setCardActive] = useCardActive()
   const { viewport } = useThree()
-  const { color } = useCardColor(identity)
-  const material = useCardMaterial(color)
+  // const { color } = useCardColor(identity)
+  // const material = useCardMaterial(color)
   const reorderHandCards = useHandCardsReorder()
   const visibleCards = useVisibleCardsCount()
   const setData = useSetRecoilState(liveDataAtom(identity))
@@ -386,14 +394,14 @@ function HandCard({
     }
   })
   const isDark = true // luma < 0.2
-  const label = identity
+  const label = JSON.stringify(identity)
   // @ts-ignore
   const bindType = bind()
   const meshDepth = DEPTH.HAND_CARDS * (i + (cardActive && cardActive.identity === identity ? 10 : 1))
   const textDepth = meshDepth + 1
   const textOffSurface = -CARD_THICK
   return (
-    <a.mesh {...(spring as any)} {...bindType} renderOrder={meshDepth} material={material}>
+    <a.mesh {...(spring as any)} {...bindType} renderOrder={meshDepth}>
       {/* <planeGeometry args={[1, 1.5, 1, 1]} /> */}
       <boxGeometry args={[1, 1.5, CARD_THICK]} />
 
@@ -450,7 +458,7 @@ function Hand({ tableGroupRef }: { tableGroupRef: React.MutableRefObject<THREE.G
   return (
     <>
       {cardsList.slice(cardRange[0], cardRange[1]).map((identity, i) => (
-        <HandCard identity={identity} i={i} key={identity} tableGroupRef={tableGroupRef} />
+        <HandCard identity={identity} i={i} key={identity.inst_id} tableGroupRef={tableGroupRef} />
       ))}
     </>
   )
@@ -458,7 +466,7 @@ function Hand({ tableGroupRef }: { tableGroupRef: React.MutableRefObject<THREE.G
 
 /** table card move is active - ignore scaling dragging */
 let tableCardMoverActive = false
-function TableCard({ identity, i }: { identity: string; i: number }) {
+function TableCard({ identity, i }: { identity: CardInstanceIdType; i: number }) {
   const addHandCard = useCardMoveTableHand()
   const [cardActive, setCardActive] = useCardActive()
   const setDontMoveCamera = useSetDontMoveCamera()
@@ -466,8 +474,8 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
   const tableParams = useTableParamsValue()
   const { size, position, cardSize } = tableParams
   const [params, setParams] = useTableCardParams(identity)
-  const { color } = useCardColor(identity)
-  const material = useCardMaterial(color)
+  // const { color } = useCardColor(identity)
+  // const material = useCardMaterial(color)
   const handTex = useTexture(`img/handwhite.png`)
   const [unmounting, setUnmounting] = useState(false)
   const zoomSize = size * 0.4
@@ -592,7 +600,7 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
   }, [params.position, params.rotation, setSpring, cardActive, identity, cardSize, dragging])
   const visibleCards = useVisibleCardsCount()
   const isDark = true // luma < 0.2
-  const label = identity
+  const label = JSON.stringify(identity)
   const meshDepth =
     DEPTH.TABLE_CARDS * (i + 1) * (!unmounting && cardActive && cardActive.identity === identity ? 1000 : 1) +
     depthOffset
@@ -641,7 +649,6 @@ function TableCard({ identity, i }: { identity: string; i: number }) {
       <a.mesh
         {...(spring as any)}
         {...bindType}
-        material={material}
         onClick={onClick}
         renderOrder={meshDepth}
         name={`table-card-${identity}`}
@@ -846,7 +853,7 @@ function Table() {
         <meshBasicMaterial map={planeTexture} ref={meshBasicMaterial} />
       </mesh>
       {tableCardsList.map((card, i) => (
-        <Suspense fallback={null} key={card}>
+        <Suspense fallback={null} key={card.inst_id}>
           <TableCard identity={card} i={i} />
         </Suspense>
       ))}

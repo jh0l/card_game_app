@@ -6,7 +6,7 @@ import { TopRightMenu } from '@/src/components/dom/TopRightMenu'
 export default function GameClient() {
   return (
     <>
-      <GameView />
+      {/* <GameView /> */}
       <HandScrubber />
       <TopRightMenu />
       <GameBar />
