@@ -1,6 +1,8 @@
+"use client"
+// import GameClient from '@/src/components/GameClient'
 import SpinnerLight from '@/src/components/dom/SpinnerLight'
 import dynamic from 'next/dynamic'
-const GameClient = dynamic(() => import('@/src/components/GameClient'), { ssr: false, loading: SpinnerLight })
+const GameClient = dynamic(() => import('@/src/components/GameClient'), { ssr: false, loading: () => <SpinnerLight /> })
 
 export default function Page() {
   return (

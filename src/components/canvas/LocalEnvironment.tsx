@@ -19,27 +19,27 @@ const useOrientationPermission = () => useRecoilState(permissionAtom)
 
 const quaternion = new THREE.Quaternion()
 export function LocalEnvironment() {
-  const three = useThree()
-  const [intensity] = useState(0.66)
+  const [intensity] = useState(1)
   // const [quaternionState, setQuaternion] = useState<THREE.Quaternion>(quaternion)
   // const [gyroData, setGyroData] = useState('')
   // const [gyroState, setGyroEnabled] = useOrientationPermission()
   const pointer = useThree((state) => state.pointer)
+  const viewport = useThree((state) => state.viewport)
   const texture = useLoader(RGBELoader, 'forest_slope_1k.hdr')
   // const meshRef = useRef<THREE.Mesh>()
   const [[x, y, z], setYZ] = useState([0, Math.PI / 2, 0])
-  useEffect(() => {
-    //   if (gyroState === 'listen') return
-    const id = setInterval(() => {
-      // vertical
-      let _x = -Math.sin(Math.sin(pointer.y - 100) * 0.01) * Math.PI
-      // rotate in direction slowly coming to a limit after a while
-      // horizontal
-      let _y = y + Math.sin(pointer.x) * 0.003
-      setYZ([_x, _y, 0])
-    }, 150)
-    return () => clearInterval(id)
-  }, [pointer.x, pointer.y, x, y, z])
+  // useEffect(() => {
+  //   //   if (gyroState === 'listen') return
+  //   const id = setInterval(() => {
+  //     // vertical
+  //     let _x = -Math.sin(Math.sin(viewport.height - pointer.y - 100) * 0.1) * Math.PI
+  //     // rotate in direction slowly coming to a limit after a while
+  //     // horizontal
+  //     let _y = y + Math.sin(pointer.x) * 0.003
+  //     setYZ([_x, _y, 0])
+  //   }, 16)
+  //   return () => clearInterval(id)
+  // }, [pointer.x, pointer.y, x, y, z, viewport.height])
   // useEffect(() => {
   //   if (gyroState !== 'init') return
   //   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)

@@ -19,7 +19,6 @@ type BoundsExt = Bounds & {
   cardWidth: number
   offset: number
 }
-
 const lastSelfEvent: { time: number } = { time: 0 }
 export function HandScrubber() {
   const cards = useHandCardsListValue()
@@ -29,6 +28,14 @@ export function HandScrubber() {
   const parentRef = useRef<HTMLDivElement>(null)
   const cardsRef = useRef<HTMLDivElement>(null)
   const [resizeObserver] = useState(() => {
+    if (!window.ResizeObserver) {
+      // return dummy observer
+      return {
+        observe: () => {},
+        unobserve: () => {},
+        disconnect: () => {},
+      }
+    }
     try {
       return new ResizeObserver(() => {
         setCalculateBounds((x) => x + 1)
@@ -218,54 +225,54 @@ function CardButton({ identity, onClick }: { identity: string; onClick: MouseEve
         sizes='(max-width: 56px) 56px'
         className='pointer-events-none h-fit w-full max-w-[37.333px] rounded object-cover mix-blend-overlay'
       />
-      <div className='absolute inset-0 top-3/4 flex items-center justify-center text-xs'>{identity}</div>
+      <div className='absolute inset-0 top-3/4 flex items-center justify-center text-xs'></div>
     </button>
   )
 }
 
-function TestThrottle() {
-  const range = useCardRangeValue()
-  const cards = useHandCardsListValue()
-  const setCardRange = useCardRangeSet()
-  const [throt] = useState(() => throttler(100, 1000))
+// function TestThrottle() {
+//   const range = useCardRangeValue()
+//   const cards = useHandCardsListValue()
+//   const setCardRange = useCardRangeSet()
+//   const [throt] = useState(() => throttler(100, 1000))
 
-  return (
-    <div className='absolute -top-12 flex items-center gap-2 rounded bg-white'>
-      <Button
-        onClick={() => {
-          if (throt()) {
-            setCardRange((x) => {
-              const newRange = [...x]
-              if (newRange[0] > 0) {
-                newRange[0]--
-                newRange[1]--
-              }
-              return newRange
-            })
-          }
-        }}
-      >
-        Dw
-      </Button>
-      <div className='text-black'>
-        {range[0] + 1} - {range[1]}
-      </div>
-      <Button
-        onClick={() => {
-          if (throt()) {
-            setCardRange((x) => {
-              const newRange = [...x]
-              if (newRange[1] < cards.length) {
-                newRange[0]++
-                newRange[1]++
-              }
-              return newRange
-            })
-          }
-        }}
-      >
-        Up
-      </Button>
-    </div>
-  )
-}
+//   return (
+//     <div className='absolute -top-12 flex items-center gap-2 rounded bg-white'>
+//       <Button
+//         onClick={() => {
+//           if (throt()) {
+//             setCardRange((x) => {
+//               const newRange = [...x]
+//               if (newRange[0] > 0) {
+//                 newRange[0]--
+//                 newRange[1]--
+//               }
+//               return newRange
+//             })
+//           }
+//         }}
+//       >
+//         Dw
+//       </Button>
+//       <div className='text-black'>
+//         {range[0] + 1} - {range[1]}
+//       </div>
+//       <Button
+//         onClick={() => {
+//           if (throt()) {
+//             setCardRange((x) => {
+//               const newRange = [...x]
+//               if (newRange[1] < cards.length) {
+//                 newRange[0]++
+//                 newRange[1]++
+//               }
+//               return newRange
+//             })
+//           }
+//         }}
+//       >
+//         Up
+//       </Button>
+//     </div>
+//   )
+// }

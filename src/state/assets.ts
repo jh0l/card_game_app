@@ -28,8 +28,8 @@ export const useCardDefinitionsListSet = () => useSetRecoilState(cardDefinitionI
 export interface ImageDefinitionIdType {
   image_id: string
 }
-export interface TextureDefinitionIdType {
-  texture_id: string
+export interface GraphicDefinitionIdType {
+  graphic_id: string
 }
 
 export interface CardInstanceIdType extends Readonly<{ [key: string]: SerializableParam }> {
@@ -37,9 +37,9 @@ export interface CardInstanceIdType extends Readonly<{ [key: string]: Serializab
   inst_id: string
 }
 
-export interface TextureInstanceType {
+export interface GraphicInstanceType {
   inst_id: string
-  texture_id: string
+  graphic_id: string
   position: Vec3
   rotation: Vec3
   width: number
@@ -50,7 +50,7 @@ export interface CardDefinitionType {
   description: string
   label: string
   name: string
-  graphics: TextureInstanceType[]
+  graphics: GraphicInstanceType[]
   health?: string
   attack?: string
   defence?: string
@@ -69,8 +69,8 @@ const cardDefinition = atomFamily<CardDefinitionType, string>({
 export const useCardDefinition = (id: string) => useRecoilState(cardDefinition(id))
 export const useSetCardDefinition = (id: string) => useSetRecoilState(cardDefinition(id))
 
-/** TEXTURE STATE */
-export interface TextureDefinitionType {
+/** GRAPHIC STATE */
+export interface GraphicDefinitionType {
   name: string
   image: ImageDefinitionIdType
   bumpMap: ImageDefinitionIdType
@@ -79,8 +79,8 @@ export interface TextureDefinitionType {
   height: number
   available?: number
 }
-const textureDefinition = atomFamily<TextureDefinitionType, string>({
-  key: 'textureDefinition',
+const graphicDefinition = atomFamily<GraphicDefinitionType, string>({
+  key: 'graphicDefinition',
   default: {
     name: '',
     image: { image_id: '' },
@@ -89,18 +89,18 @@ const textureDefinition = atomFamily<TextureDefinitionType, string>({
     width: 1,
     height: 1,
   },
-  effects: (key) => [IndexedDBEffect('texture_definition', key)],
+  effects: (key) => [IndexedDBEffect('graphic_definition', key)],
 })
-export const useTextureDefinition = (id: string) => useRecoilState(textureDefinition(id))
-export const useSetTextureDefinition = (id: string) => useSetRecoilState(textureDefinition(id))
-const textureDefinitionIds = atom<string[]>({
-  key: 'textureDefinitionIds',
+export const useGraphicDefinition = (id: string) => useRecoilState(graphicDefinition(id))
+export const useGraphicDefinitionSet = (id: string) => useSetRecoilState(graphicDefinition(id))
+const graphicDefinitionIds = atom<string[]>({
+  key: 'graphicDefinitionIds',
   default: [],
-  effects: [localStorageEffect('texture_definition_ids')],
+  effects: [localStorageEffect('graphic_definition_ids')],
 })
-export const useTextureDefinitionIds = () => useRecoilState(textureDefinitionIds)
-export const useTextureDefinitionIdsList = () => useRecoilValue(textureDefinitionIds)
-export const useTextureDefinitionIdsListSet = () => useSetRecoilState(textureDefinitionIds)
+export const useGraphicDefinitionIds = () => useRecoilState(graphicDefinitionIds)
+export const useGraphicDefinitionIdsList = () => useRecoilValue(graphicDefinitionIds)
+export const useGraphicDefinitionIdsListSet = () => useSetRecoilState(graphicDefinitionIds)
 
 /** IMAGE STATE */
 
@@ -142,7 +142,7 @@ const imageDefinitionIndexed = atomFamily<ImageDefinitionType, string>({
 export const useImageDefinition = (id: string) => useRecoilState(imageDefinitionIndexed(id))
 export const useImageDefinitionSet = (id: string) => useSetRecoilState(imageDefinitionIndexed(id))
 
-interface ImageDefinitionUrl extends ImageDefinitionType {
+export interface ImageDefinitionUrl extends ImageDefinitionType {
   url: string
   width: number
   height: number

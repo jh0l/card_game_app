@@ -25,12 +25,8 @@ export default function RootLayout({ children }) {
       <head />
       <body className={cn('select-none font-sans', fontSans.variable)}>
         {/* To avoid FOUT with styled-components wrap Layout with StyledComponentsRegistry https://beta.nextjs.org/docs/styling/css-in-js#styled-components */}
-        <Layout>{children}</Layout>
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   )
-}
-
-const Layout = ({ children }) => {
-  return <ClientLayout>{children}</ClientLayout>
 }

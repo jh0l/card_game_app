@@ -1,19 +1,17 @@
 import {
+  SerializableParam,
   atom,
   atomFamily,
   selector,
-  selectorFamily,
   useRecoilCallback,
   useRecoilState,
   useRecoilValue,
   useSetRecoilState,
 } from 'recoil'
 import { Vec3 } from '../lib/types'
-import { createHash } from 'crypto'
-import { CardInstanceIdType, cardDefinitionIds, randomId } from './assets'
+import { CardInstanceIdType } from './assets'
 import { IndexedDBEffect } from './effects'
 export const MAX_VISIBLE_CARDS = 7
-const CARDS = 20
 
 // comic book sticker colors
 // export const COLORS: { color: string; luma: number }[] = [
@@ -84,35 +82,11 @@ const CARDS = 20
 //   .map((_, i) => {
 //     return String(i + 1)
 //   })
-const randomCards = selector<CardInstanceIdType[]>({
-  get: ({ get }) => {
-    // get all card def ids
-    const cardIds = get(cardDefinitionIds)
-    if (cardIds.length === 0) {
-      return []
-    }
-    // if there are less than CARDS, fill up with ids from cardIds
-    const cards = Array.from({ length: CARDS })
-      .fill(0)
-      .map((_, i) => {
-        return cardIds[i % cardIds.length]
-      })
-    // shuffle cards
-    cards.sort(() => Math.random() - 0.5)
-    // add instance ids
-    const res = cards.map((id) => {
-      return {
-        def_id: id,
-        inst_id: randomId(),
-      }
-    })
-    return res
-  },
-  key: 'randomCards',
-})
+
 const handCardsList = atom<CardInstanceIdType[]>({
   key: 'handsCardsList',
-  effects: [IndexedDBEffect('handCardIds', 'v2')],
+  default: [],
+  effects: [IndexedDBEffect('handCardIds', 'v3')],
 })
 
 export const useHandCardsListValue = () => useRecoilValue(handCardsList)
@@ -165,7 +139,7 @@ const visibleCardsSelector = selector<number>({
 })
 export const useVisibleCardsCount = () => useRecoilValue(visibleCardsSelector)
 
-interface CardActive {
+export interface CardActive {
   identity: CardInstanceIdType
   type: 'hand' | 'table'
 }
@@ -204,6 +178,7 @@ const tableParams = atom<TableParameters>({
       bottom: -0.5,
     },
   },
+  effects: [IndexedDBEffect('table_params', '')],
 })
 
 export const useTableParamsValue = () => useRecoilValue(tableParams)
@@ -212,6 +187,7 @@ export const useTableParamsSet = () => useSetRecoilState(tableParams)
 const tableCardList = atom<CardInstanceIdType[]>({
   key: 'tableCardList',
   default: [],
+  effects: [IndexedDBEffect('table_card_list', '')],
 })
 
 export type ObjectParams = { position: Vec3; rotation: Vec3 }
@@ -221,6 +197,7 @@ const tableCardParams = atomFamily<ObjectParams, CardInstanceIdType>({
     position: [0, 0, 0],
     rotation: [0, 0, 0],
   },
+  effects: [IndexedDBEffect('table_card_params', '')],
 })
 
 export const useTableCardListValue = () => useRecoilValue(tableCardList)

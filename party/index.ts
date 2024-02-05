@@ -92,21 +92,25 @@ export default class Server implements Party.Server {
   _users: Map<string, User> = new Map()
   _usernames: Set<string> = new Set()
   _presentUsers: Set<string> = new Set()
-  _userHandCards: Map<string, Set<string>> = new PersistedMap(this.room, USER_HAND_CARDS)
-  _userTableCards: Map<string, Set<string>> = new PersistedMap(this.room, USER_TABLE_CARDS)
+  _userHandCards: Map<string, Set<string>>
+  _userTableCards: Map<string, Set<string>>
   _tableParams: TableParameters
-  _cards: Map<string, ObjectParams> = new PersistedMap(this.room, CARDS)
-  _players: Map<string, ObjectParams> = new PersistedMap(this.room, PLAYERS)
+  _cards: Map<string, ObjectParams>
+  _players: Map<string, ObjectParams> 
 
   async initialiseFields() {
+    this._tableParams = this.setTableParams()
     this._name = await this.room.storage.get(NAME)
     this._status = await this.room.storage.get(STATUS)
     this._owner_email = await this.room.storage.get(OWNER_EMAIL)
     this._usernames = (await this.room.storage.get(USERNAMES)) || new Set()
+    this._userHandCards = new PersistedMap(this.room, USER_HAND_CARDS)
+    this._userTableCards = new PersistedMap(this.room, USER_TABLE_CARDS)
+    this._cards = new PersistedMap(this.room, CARDS)
+    this._players = new PersistedMap(this.room, PLAYERS)
   }
   constructor(readonly room: Party.Room) {
     this.physics = new PhysicsHandler()
-    this._tableParams = this.setTableParams()
     this.initialiseFields()
   }
   setTableParams() {

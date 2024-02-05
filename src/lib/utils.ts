@@ -4,7 +4,6 @@ import throttle from 'lodash.throttle'
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
-
 /**
  * @param {number} ms
   overcomplicated throttle that allows for an initial delay before the first positive
