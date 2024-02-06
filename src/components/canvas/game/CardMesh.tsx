@@ -147,7 +147,12 @@ function GraphicMesh({
   const imageGraphic = useImageDefUrl(graphicDef.image)
   const bumpGraphic = useImageDefUrl(graphicDef.bumpMap)
   const iridGraphic = useImageDefUrl(graphicDef.iridescentMap)
-  const [map, bump, irid] = useTexture([imageGraphic.url, bumpGraphic.url, iridGraphic.url])
+  const imageUrl = imageGraphic.url ? [imageGraphic.url] : []
+  const bumpUrl = bumpGraphic.url ? [bumpGraphic.url] : []
+  const iridUrl = iridGraphic.url ? [iridGraphic.url] : []
+  const [map] = useTexture(imageUrl)
+  const [bump] = useTexture(bumpUrl)
+  const [irid] = useTexture(iridUrl)
   const material = useMemo(() => {
     if (map && bump && irid) {
       return new THREE.MeshPhysicalMaterial({

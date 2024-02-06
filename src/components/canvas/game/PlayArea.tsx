@@ -454,10 +454,10 @@ function Hand({ tableGroupRef }: { tableGroupRef: React.MutableRefObject<THREE.G
     </>
   )
 }
-
+const TableCard = memo(_TableCard)
 /** table card move is active - ignore scaling dragging */
 let tableCardMoverActive = false
-function TableCard({ identity, i }: { identity: CardInstanceIdType; i: number }) {
+function _TableCard({ identity, i }: { identity: CardInstanceIdType; i: number }) {
   const addHandCard = useCardMoveTableHand()
   const [cardActive, setCardActive] = useCardActive()
   const setDontMoveCamera = useSetDontMoveCamera()
@@ -591,7 +591,7 @@ function TableCard({ identity, i }: { identity: CardInstanceIdType; i: number })
       })
     }
   }, [params.position, params.rotation, setSpring, isActive, cardSize, dragging])
-  const visibleCards = useVisibleCardsCount()
+  const visibleCards = 0 // useVisibleCardsCount()
   const setClickViewCard = useSetRecoilState(clickViewCardAtom)
   const isDark = true // luma < 0.2
   const label = JSON.stringify(identity)
@@ -826,10 +826,10 @@ export default function PlayArea() {
       {/* <Html className='pointer-events-none w-96 font-mono'></Html> */}
       <CameraControls />
       <group position={[0, -2, 0]} rotation={[0, 0, 0]}>
+        <Hand tableGroupRef={tableGroupRef} />
         <group ref={tableGroupRef}>
           <Table />
         </group>
-        <Hand tableGroupRef={tableGroupRef} />
         <mesh ref={raycastBoard} position={[0, height / 2, -3]}>
           <planeGeometry args={[width * 2, height * 2, 1, 1]} />
           {/* transparent material */}

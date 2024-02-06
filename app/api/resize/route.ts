@@ -3,12 +3,7 @@
 // returning the image to be used by the ImageHandler component
 import { writeFile } from 'fs/promises'
 import { NextRequest, NextResponse } from 'next/server'
-let sharp
-if (process.env.NODE_ENV === 'production') {
-  sharp = require('@img/sharp-linux-x64')
-} else {
-  sharp = require('sharp')
-}
+import sharp from 'sharp'
 
 export const dynamic = 'force-dynamic'
 export async function POST(req: NextRequest) {
