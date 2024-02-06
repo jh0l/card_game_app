@@ -218,15 +218,18 @@ function ImageResizer({ image, setNewImageObj }: ResizeImageProps) {
         method: 'POST',
         body: formData,
       })
+      if (!res.ok) {
+        alert('Error resizing image')
+        return
+      }
       const resBlob = await res.blob()
       const newFileName = image.src.split('/').pop() || 'untitled'
       setNewImageObj({ src: URL.createObjectURL(resBlob), file: new File([resBlob], newFileName) })
-      setLoading(false)
     } catch (e) {
       alert('Error resizing image')
       console.error(e)
-      setLoading(false)
     }
+    setLoading(false)
   }
   if (!image) {
     return <span className='text-white/50'>👁👄👁 no image</span>
