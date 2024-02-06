@@ -3,9 +3,9 @@
 // returning the image to be used by the ImageHandler component
 import { writeFile } from 'fs/promises'
 import { NextRequest, NextResponse } from 'next/server'
-import { ImageResponse } from 'next/og'
 import sharp from 'sharp'
 
+export const dynamic = 'force-dynamic'
 export async function POST(req: NextRequest) {
   const data = await req.formData()
   const fields = {
@@ -39,6 +39,16 @@ export async function POST(req: NextRequest) {
     headers: {
       'Content-Type': 'image/png',
       'Content-Length': String(newBuffer.length),
+    },
+  })
+}
+
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST',
+      'Access-Control-Allow-Headers': 'Content-Type',
     },
   })
 }
