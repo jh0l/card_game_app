@@ -49,7 +49,7 @@ import {
   SymbolIcon,
   WidthIcon,
 } from '@radix-ui/react-icons'
-import { useHandCardsList, useHandCardsListSet } from '@/src/state/room'
+import { useCardActiveSet, useHandCardsList, useHandCardsListSet } from '@/src/state/room'
 import {
   Dialog,
   DialogContent,
@@ -84,6 +84,10 @@ export default function Page() {
  */
 
 function CardManager() {
+  const setCardActive = useCardActiveSet()
+  React.useEffect(() => {
+    setCardActive(false)
+  }, [setCardActive])
   return (
     <div className='pointer-events-none absolute inset-0 z-20 flex flex-col items-end justify-end p-2'>
       <div className='pointer-events-auto flex h-[90%] w-full max-w-lg flex-col gap-2 overflow-y-scroll bg-zinc-900/80'>

@@ -609,9 +609,13 @@ function _TableCard({ identity, i }: { identity: CardInstanceIdType; i: number }
       })
       setDragging(true)
       setClickViewCard(null)
+      return
     } else if (!dragging) {
       setCardActive(false)
     }
+    setSpring.start({
+      scale: [cardSize, cardSize, cardSize] as Vec3,
+    })
   }
   const pickup: MouseEventHandler<HTMLButtonElement> = (e) => {
     e.stopPropagation()

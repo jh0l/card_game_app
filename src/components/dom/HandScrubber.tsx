@@ -1,6 +1,8 @@
+/* eslint-disable @next/next/no-img-element */
 'use client'
 import { Button } from '@/src/components/ui/button'
 import { throttler } from '@/src/lib/utils'
+import { useCardDefinition, useGraphicDefImgUrl, useImageDefUrl } from '@/src/state/assets'
 import {
   MAX_VISIBLE_CARDS,
   useCardRange,
@@ -215,14 +217,15 @@ export function HandScrubber() {
 }
 
 function CardButton({ identity, onClick }: { identity: string; onClick: MouseEventHandler<HTMLButtonElement> }) {
-  // const { color } = useCardColor(identity)
+  const [cardDef] = useCardDefinition(identity)
+  console.log(cardDef.graphics)
+  const gfxLen = cardDef.graphics.length
+  const img = useGraphicDefImgUrl(gfxLen ? cardDef.graphics[gfxLen - 1].graphic_id : '')
   return (
     <button className='relative max-h-14 w-full max-w-[37.333px]' onClick={onClick}>
-      <Image
-        src='/img/cards/melty-boy0-q25.png'
+      <img
+        src={img.url}
         alt='a playing card'
-        fill
-        sizes='(max-width: 56px) 56px'
         className='pointer-events-none h-fit w-full max-w-[37.333px] rounded object-cover mix-blend-overlay'
       />
       <div className='absolute inset-0 top-3/4 flex items-center justify-center text-xs'></div>

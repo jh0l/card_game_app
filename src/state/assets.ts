@@ -51,6 +51,7 @@ export interface CardDefinitionType {
   label: string
   name: string
   graphics: GraphicInstanceType[]
+  primaryGraphic?: number
   health?: string
   attack?: string
   defence?: string
@@ -177,3 +178,15 @@ export const imageDefinitionURLSelector = selectorFamily<ImageDefinitionUrl, str
     },
 })
 export const useImageDefUrl = (id: { image_id: string }) => useRecoilValue(imageDefinitionURLSelector(id.image_id))
+
+export const graphicDefinitionImageDefinitionUrlSelector = selectorFamily<ImageDefinitionUrl, string>({
+  key: 'graphic_definition_image_definition_url_selector',
+  get:
+    (id) =>
+    async ({ get }) => {
+      const graphic = get(graphicDefinition(id))
+      return get(imageDefinitionURLSelector(graphic.image.image_id))
+    },
+})
+
+export const useGraphicDefImgUrl = (id: string) => useRecoilValue(graphicDefinitionImageDefinitionUrlSelector(id))
