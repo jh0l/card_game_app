@@ -32,10 +32,11 @@ export const IndexedDBEffect: <T>(store: string, primary_key: string) => AtomEff
   return ({ setSelf, onSet, trigger }) => {
     const key = store + ':' + primary_key
     const loadPersisted = async () => {
-      if (typeof localStorage === 'undefined') return
+      if (typeof indexedDB === 'undefined') return
       const savedValue = await localforage.getItem(key)
       if (savedValue != null) {
-        setSelf(savedValue as any)
+        setTimeout(() => setSelf(savedValue as any), 1000)
+        // setSelf(savedValue as any)
       }
     }
     if (trigger === 'get') {
