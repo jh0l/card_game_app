@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 export async function OPTIONS(request: Request) {
   return new Response(null, {
     headers: {
-      'Access-Control-Allow-Origin': '*',
+      // allow same origin only
       'Access-Control-Allow-Methods': 'POST',
       'Access-Control-Allow-Headers': 'Content-Type',
     },
