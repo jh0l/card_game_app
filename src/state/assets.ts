@@ -45,6 +45,17 @@ export interface GraphicInstanceType {
   width: number
   renderOrderOffset: number
 }
+
+export type CardTypeDefinition =
+  | {
+      type: 'monster'
+      attack: string
+      defence: string
+      health: string
+    }
+  | {
+      type: 'item'
+    }
 export interface CardDefinitionType {
   id: string
   description: string
@@ -52,6 +63,7 @@ export interface CardDefinitionType {
   name: string
   graphics: GraphicInstanceType[]
   primaryGraphic?: number
+  cardTypeDef?: CardTypeDefinition
   health?: string
   attack?: string
   defence?: string

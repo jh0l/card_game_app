@@ -153,9 +153,10 @@ function GraphicMesh({
   const [map] = useTexture(imageUrl)
   const [bump] = useTexture(bumpUrl)
   const [irid] = useTexture(iridUrl)
-  const material = useMemo(() => {
+  const materialRef = useRef<THREE.MeshPhysicalMaterial>()
+  useEffect(() => {
     if (map && bump && irid) {
-      return new THREE.MeshPhysicalMaterial({
+      const material = new THREE.MeshPhysicalMaterial({
         map,
         transparent: true,
         depthTest: false,
@@ -173,6 +174,10 @@ function GraphicMesh({
         iridescenceThicknessRange: [280, 750],
         // color: '#ffffff',
       })
+      materialRef.current = material
+      return () => {
+        material.dispose()
+      }
     }
   }, [map, bump, irid])
   const geometry = useMemo(() => {
@@ -185,7 +190,7 @@ function GraphicMesh({
   return (
     <mesh
       name={name}
-      material={material}
+      material={materialRef.current}
       geometry={geometry}
       scale={scale}
       renderOrder={renderOrder}

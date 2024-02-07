@@ -428,8 +428,6 @@ function _HandCard({
   const isActive =
     cardActive && cardActive.identity.def_id === identity.def_id && cardActive.identity.inst_id === identity.inst_id
   const meshDepth = DEPTH.HAND_CARDS * (i + (isActive ? Math.pow(DEPTH.HAND_CARDS, 2) : 1))
-  const textDepth = meshDepth + 1
-  const textOffSurface = -CARD_THICK
   const name = `${identity.def_id}-${identity.inst_id}`
   return (
     <a.mesh {...(spring as any)} {...bindType} renderOrder={meshDepth} name={name} onClick={onClick}>
