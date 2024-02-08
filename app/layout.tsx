@@ -1,14 +1,20 @@
 import '@/app/theme.css'
 import '@/app/global.css'
-import { Rubik as FontSans } from 'next/font/google'
+// import { Rubik as FontSans } from 'next/font/google'
+import localFont from 'next/font/local'
 import { cn } from '@/src/lib/utils'
+
+const fontSans = localFont({
+  src: './Rubik-Regular.ttf',
+  variable: '--font-sans',
+})
 
 import ClientLayout from '@/src/components/dom/ClientLayout'
 
-export const fontSans = FontSans({
-  subsets: ['latin'],
-  variable: '--font-sans',
-})
+// export const fontSans = FontSans({
+//   subsets: ['latin'],
+//   variable: '--font-sans',
+// })
 
 export const metadata = {
   title: 'Card Game Gestures',

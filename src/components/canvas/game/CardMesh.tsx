@@ -1,6 +1,6 @@
 'use client'
 import * as THREE from 'three'
-import React, { useContext, createContext, useRef, useEffect, useCallback, useMemo } from 'react'
+import React, { useContext, createContext, useRef, useEffect, useCallback, useMemo, Suspense } from 'react'
 import { Text, useTexture } from '@react-three/drei'
 import { GraphicInstanceType, useCardDefinition, useImageDefUrl, useGraphicDefinition } from '@/src/state/assets'
 import HtmlPortal from '@/src/helpers/components/HtmlPortal'
@@ -153,10 +153,9 @@ function GraphicMesh({
   const [map] = useTexture(imageUrl)
   const [bump] = useTexture(bumpUrl)
   const [irid] = useTexture(iridUrl)
-  const materialRef = useRef<THREE.MeshPhysicalMaterial>()
-  useEffect(() => {
+  const material = useMemo(() => {
     if (map && bump && irid) {
-      const material = new THREE.MeshPhysicalMaterial({
+      return new THREE.MeshPhysicalMaterial({
         map,
         transparent: true,
         depthTest: false,
@@ -174,23 +173,21 @@ function GraphicMesh({
         iridescenceThicknessRange: [280, 750],
         // color: '#ffffff',
       })
-      materialRef.current = material
-      return () => {
-        material.dispose()
-      }
     }
   }, [map, bump, irid])
   const geometry = useMemo(() => {
-    if (imageGraphic) {
+    if (map && bump && irid) {
       const height = imageGraphic.height / imageGraphic.width
       return new THREE.PlaneGeometry(1, height)
+    } else {
+      return new THREE.PlaneGeometry(0, 0)
     }
-  }, [imageGraphic])
+  }, [map, bump, irid, imageGraphic])
   const scale = [graphicInst.width, graphicInst.width, graphicInst.width] as Vec3
   return (
     <mesh
       name={name}
-      material={materialRef.current}
+      material={material}
       geometry={geometry}
       scale={scale}
       renderOrder={renderOrder}
@@ -222,13 +219,15 @@ function _CardMesh({ cardDefId, meshDepth, name }: CardMeshProps) {
     <>
       {cardDef.graphics.map((graphicInst, i) => (
         <ErrorBoundary key={graphicInst.inst_id}>
-          <GraphicMesh
-            name={name}
-            key={graphicInst.inst_id}
-            graphicInst={graphicInst}
-            graphicDefId={graphicInst.graphic_id}
-            renderOrder={meshDepth + i + graphicInst.renderOrderOffset}
-          />
+          <Suspense fallback={null}>
+            <GraphicMesh
+              name={name}
+              key={graphicInst.inst_id}
+              graphicInst={graphicInst}
+              graphicDefId={graphicInst.graphic_id}
+              renderOrder={meshDepth + i + graphicInst.renderOrderOffset}
+            />
+          </Suspense>
         </ErrorBoundary>
       ))}
       {/* <Text

@@ -458,16 +458,23 @@ function CardDefinition({
   handleDuplicate: (card: CardDefinitionType) => void
 }) {
   const [cardDefinitionState, setCardDefinition] = useCardDefinition(id)
-  const setDefValue = (key: keyof CardDefinitionType) => (event: React.ChangeEvent<HTMLInputElement>) =>
-    setCardDefinition((prev) => ({ ...prev, [key]: event.target.value }))
-  const setGraphicsValue = (index: number, value: GraphicInstanceType) =>
-    setCardDefinition((prev) => {
-      const copy = { ...prev }
-      const graphics = [...copy.graphics]
-      graphics[index] = value
-      copy.graphics = graphics
-      return copy
+  const [inTransition, startTransition] = React.useTransition()
+  const setDefValue = (key: keyof CardDefinitionType) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    startTransition(() => {
+      setCardDefinition((prev) => ({ ...prev, [key]: event.target.value }))
     })
+  }
+  const setGraphicsValue = (index: number, value: GraphicInstanceType) => {
+    startTransition(() => {
+      setCardDefinition((prev) => {
+        const copy = { ...prev }
+        const graphics = [...copy.graphics]
+        graphics[index] = value
+        copy.graphics = graphics
+        return copy
+      })
+    })
+  }
   const setAllGraphics = (newGraphics: GraphicInstanceType[]) => {
     setCardDefinition((prev) => {
       const copy = { ...prev }

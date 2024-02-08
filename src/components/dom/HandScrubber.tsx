@@ -2,7 +2,7 @@
 'use client'
 import { Button } from '@/src/components/ui/button'
 import { throttler } from '@/src/lib/utils'
-import { useCardDefinition, useGraphicDefImgUrl, useImageDefUrl } from '@/src/state/assets'
+import { useCardDefinition, useGraphicDefImgUrl } from '@/src/state/assets'
 import {
   MAX_VISIBLE_CARDS,
   useCardRange,
@@ -13,7 +13,8 @@ import {
 import { useSpring, animated } from '@react-spring/web'
 import { Bounds, useDrag } from '@use-gesture/react'
 import Image from 'next/image'
-import { MouseEventHandler, useEffect, useRef, useState } from 'react'
+import { MouseEventHandler, Suspense, useEffect, useRef, useState } from 'react'
+import SpinnerLight from './SpinnerLight'
 
 type BoundsExt = Bounds & {
   mid: number
@@ -23,6 +24,13 @@ type BoundsExt = Bounds & {
 }
 const lastSelfEvent: { time: number } = { time: 0 }
 export function HandScrubber() {
+  return (
+    <Suspense fallback={<SpinnerLight />}>
+      <_HandScrubber />
+    </Suspense>
+  )
+}
+function _HandScrubber() {
   const cards = useHandCardsListValue()
   const [cardRange, setCardRange] = useCardRange()
   const [calculateBounds, setCalculateBounds] = useState(0)
@@ -190,8 +198,8 @@ export function HandScrubber() {
   // @ts-ignore
   const bindType = bind()
   return (
-    <div className='absolute inset-x-5 bottom-[1%] z-10 mx-auto flex h-14 w-[90%] max-w-screen-md items-center justify-center rounded bg-white/0'>
-      <div className='absolute inset-0 flex w-full justify-center rounded' ref={cardsRef}>
+    <div className='absolute inset-x-5 bottom-[1%] z-10 mx-auto flex h-14 w-[90%] max-w-screen-md items-center justify-start rounded bg-white/0'>
+      <div className='absolute inset-0 flex w-full justify-start rounded' ref={cardsRef}>
         {cards.map((key) =>
           key === undefined ? (
             <div key={key}></div>
@@ -218,11 +226,10 @@ export function HandScrubber() {
 
 function CardButton({ identity, onClick }: { identity: string; onClick: MouseEventHandler<HTMLButtonElement> }) {
   const [cardDef] = useCardDefinition(identity)
-  console.log(cardDef.graphics)
   const gfxLen = cardDef.graphics.length
   const img = useGraphicDefImgUrl(gfxLen ? cardDef.graphics[gfxLen - 1].graphic_id : '')
   return (
-    <button className='relative max-h-14 w-full max-w-[37.333px]' onClick={onClick}>
+    <button className='relative h-14 w-[37.333px]' onClick={onClick}>
       <img
         src={img.url}
         alt='a playing card'

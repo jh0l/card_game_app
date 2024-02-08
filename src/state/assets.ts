@@ -4,6 +4,7 @@ import {
   atomFamily,
   selectorFamily,
   useRecoilState,
+  useRecoilState_TRANSITION_SUPPORT_UNSTABLE,
   useRecoilValue,
   useSetRecoilState,
 } from 'recoil'
@@ -45,7 +46,16 @@ export interface GraphicInstanceType {
   width: number
   renderOrderOffset: number
 }
-
+export interface TextInstanceType {
+  name: string
+  text: string
+  position: Vec3
+  vertical_anchor: string
+  horizontal_anchor: string
+  size: number
+  scale: number
+  renderOrderOffset: number
+}
 export type CardTypeDefinition =
   | {
       type: 'monster'
@@ -62,6 +72,7 @@ export interface CardDefinitionType {
   label: string
   name: string
   graphics: GraphicInstanceType[]
+  texts: TextInstanceType[]
   primaryGraphic?: number
   cardTypeDef?: CardTypeDefinition
   health?: string
@@ -74,12 +85,13 @@ const cardDefinition = atomFamily<CardDefinitionType, string>({
     id: '',
     name: '',
     graphics: [],
+    texts: [],
     label: '',
     description: '',
   },
   effects: (key) => [IndexedDBEffect('card_definition', key)],
 })
-export const useCardDefinition = (id: string) => useRecoilState(cardDefinition(id))
+export const useCardDefinition = (id: string) => useRecoilState_TRANSITION_SUPPORT_UNSTABLE(cardDefinition(id))
 export const useSetCardDefinition = (id: string) => useSetRecoilState(cardDefinition(id))
 
 /** GRAPHIC STATE */

@@ -191,21 +191,25 @@ const tableCardList = atom<CardInstanceIdType[]>({
 })
 
 export type ObjectParams = { position: Vec3; rotation: Vec3 }
-const tableCardParams = atomFamily<ObjectParams, CardInstanceIdType>({
+const tableCardParams = atomFamily<ObjectParams, string>({
   key: 'tableCardParams',
   default: {
     position: [0, 0, 0],
     rotation: [0, 0, 0],
   },
-  effects: [IndexedDBEffect('table_card_params', '')],
+  effects: [IndexedDBEffect('table_card_params', 'v2')],
 })
+
+function hash(id: CardInstanceIdType) {
+  return id.def_id + id.inst_id
+}
 
 export const useTableCardListValue = () => useRecoilValue(tableCardList)
 export const useTableCardAdd = () => {
   return useRecoilCallback(
     ({ set }) =>
       (params: ObjectParams, identity: CardInstanceIdType) => {
-        set(tableCardParams(identity), params)
+        set(tableCardParams(hash(identity)), params)
         set(tableCardList, (list) => [...list, identity])
         set(handCardsList, (list) => list.filter((card) => card !== identity))
       },
@@ -213,7 +217,9 @@ export const useTableCardAdd = () => {
   )
 }
 
-export const useTableCardParams = (identity: CardInstanceIdType) => useRecoilState(tableCardParams(identity))
+export const useTableCardParams = (identity: CardInstanceIdType) => {
+  return useRecoilState(tableCardParams(hash(identity)))
+}
 
 export const useCardMoveTableHand = () => {
   return useRecoilCallback(
