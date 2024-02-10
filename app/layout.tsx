@@ -5,7 +5,7 @@ import localFont from 'next/font/local'
 import { cn } from '@/src/lib/utils'
 
 const fontSans = localFont({
-  src: './Rubik-Regular.ttf',
+  src: './bushwick.otf',
   variable: '--font-sans',
 })
 

@@ -2,10 +2,17 @@
 import * as THREE from 'three'
 import React, { useContext, createContext, useRef, useEffect, useCallback, useMemo, Suspense } from 'react'
 import { Text, useTexture } from '@react-three/drei'
-import { GraphicInstanceType, useCardDefinition, useImageDefUrl, useGraphicDefinition } from '@/src/state/assets'
+import {
+  GraphicInstanceType,
+  useCardDefinition,
+  useImageDefUrl,
+  useGraphicDefinition,
+  selectedCardDefIdState,
+} from '@/src/state/assets'
 import HtmlPortal from '@/src/helpers/components/HtmlPortal'
 import { CardActive } from '@/src/state/room'
 import { Vec3 } from '@/src/lib/types'
+import { useRecoilState } from 'recoil'
 
 // interface CardMeshContext {}
 // interface cardMeshLoaderContextType {
@@ -197,12 +204,8 @@ function GraphicMesh({
   )
 }
 
-const CARD_THICK = 0.05
 const TEXT = 0.08
-const DEPTH = {
-  TABLE_CARDS: 10,
-  HAND_CARDS: 1000,
-}
+
 export interface CardMeshProps {
   cardDefId: string
   meshDepth: number
@@ -213,8 +216,8 @@ export const CardMesh = React.memo(_CardMesh)
 
 function _CardMesh({ cardDefId, meshDepth, name }: CardMeshProps) {
   const [cardDef] = useCardDefinition(cardDefId)
-  const label = cardDef.name
   const textDepth = meshDepth + cardDef.graphics.length + 32
+  const [selected] = useRecoilState(selectedCardDefIdState)
   return (
     <>
       {cardDef.graphics.map((graphicInst, i) => (
@@ -230,47 +233,36 @@ function _CardMesh({ cardDefId, meshDepth, name }: CardMeshProps) {
           </Suspense>
         </ErrorBoundary>
       ))}
-      {/* <Text
-        material-depthTest={false}
-        material-depthWrite={false}
-        renderOrder={textDepth}
-        font='bushwick.otf'
-        scale={[TEXT, TEXT, TEXT]}
-        color='white'
-        anchorX='left'
-        anchorY='top'
-        position={[-1 / 2.2, 1.5 / 2.2, CARD_THICK / 1.9]}
-      >
-        {label}
-      </Text> */}
-      <Text
-        material-depthTest={false}
-        material-depthWrite={false}
-        renderOrder={textDepth}
-        font='bushwick.otf'
-        scale={[TEXT, TEXT, TEXT]}
-        color='white'
-        anchorX='center'
-        anchorY='middle'
-        position={[0, -0.5, CARD_THICK / 1.9]}
-      >
-        {label}
-      </Text>
-      <Text
-        material-depthTest={false}
-        material-depthWrite={false}
-        renderOrder={textDepth}
-        font='bushwick.otf'
-        scale={[TEXT / 1.4, TEXT / 1.4, TEXT / 1.4]}
-        color='white'
-        outlineWidth={0.005}
-        outlineColor='black'
-        anchorX='center'
-        anchorY='top-baseline'
-        position={[0, -0.28, CARD_THICK / 1.9]}
-      >
-        {cardDef.description}
-      </Text>
+      {Object.entries(cardDef.props || {}).map(
+        ([propId, propInst]) =>
+          propInst.enabled && (
+            <Text
+              key={propId}
+              material-depthTest={false}
+              material-depthWrite={false}
+              renderOrder={textDepth + propInst.render_order_offset}
+              font='bushwick.otf'
+              fontSize={propInst.size / 40}
+              maxWidth={propInst.width}
+              scale={[propInst.x_scale, 1, 1]}
+              color='white'
+              outlineWidth={0.0005}
+              outlineColor='black'
+              anchorX={propInst.horizontal_anchor}
+              anchorY={propInst.vertical_anchor}
+              position={propInst.position}
+            >
+              {propInst.value}
+            </Text>
+          ),
+      )}
+      {/* render red box at back of card if selected = cardDefId */}
+      {selected === cardDefId && (
+        <mesh renderOrder={meshDepth - 1} position={[0, 0, -0.01]} scale={[1, 1, 1]}>
+          <planeGeometry args={[1.1, 1.5]} />
+          <meshBasicMaterial color='red' opacity={0.5} />
+        </mesh>
+      )}
     </>
   )
 }

@@ -46,35 +46,46 @@ export interface GraphicInstanceType {
   width: number
   renderOrderOffset: number
 }
-export interface TextInstanceType {
-  name: string
-  text: string
+export type VerticalAnchorType = 'top' | 'middle' | 'bottom'
+export type HorizontalAnchorType = 'left' | 'center' | 'right'
+export interface PropInstanceType {
+  prop_id: string
+  value: string
   position: Vec3
-  vertical_anchor: string
-  horizontal_anchor: string
+  vertical_anchor: VerticalAnchorType
+  horizontal_anchor: HorizontalAnchorType
   size: number
-  scale: number
-  renderOrderOffset: number
+  width: number
+  x_scale: number
+  render_order_offset: number
+  enabled: boolean
 }
-export type CardTypeDefinition =
-  | {
-      type: 'monster'
-      attack: string
-      defence: string
-      health: string
-    }
-  | {
-      type: 'item'
-    }
+
+// TODO - default text positions for different properties
+export type CardType = 'monster' | 'item' | 'trap' | 'counter'
+export type CardTypeProp = 'health' | 'attack' | 'defence' | 'description' | 'name'
+export const CARD_TYPE_PROPERTIES: Record<CardType, CardTypeProp[]> = {
+  monster: ['health', 'attack', 'defence', 'description', 'name'],
+  item: ['description', 'name'],
+  trap: ['description', 'name'],
+  counter: ['description', 'name'],
+}
+export const CARD_ATTRIBUTE_VALUE_TYPES: Record<string, 'string' | 'number' | 'textarea'> = {
+  health: 'number',
+  attack: 'number',
+  defence: 'number',
+  description: 'textarea',
+  name: 'string',
+}
 export interface CardDefinitionType {
   id: string
   description: string
   label: string
   name: string
   graphics: GraphicInstanceType[]
-  texts: TextInstanceType[]
+  props?: Record<string, PropInstanceType>
   primaryGraphic?: number
-  cardTypeDef?: CardTypeDefinition
+  cardType?: CardType
   health?: string
   attack?: string
   defence?: string
@@ -85,7 +96,7 @@ const cardDefinition = atomFamily<CardDefinitionType, string>({
     id: '',
     name: '',
     graphics: [],
-    texts: [],
+    props: {},
     label: '',
     description: '',
   },
@@ -214,3 +225,9 @@ export const graphicDefinitionImageDefinitionUrlSelector = selectorFamily<ImageD
 })
 
 export const useGraphicDefImgUrl = (id: string) => useRecoilValue(graphicDefinitionImageDefinitionUrlSelector(id))
+
+export const selectedCardDefIdState = atom<string>({
+  key: 'selectedCardDefId',
+  default: '',
+  effects: [IndexedDBEffect('selectedCardDefId', '')],
+})

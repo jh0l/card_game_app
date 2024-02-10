@@ -419,7 +419,6 @@ function _HandCard({
   })
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation()
-    console.log(identity)
     setCardActive(false)
     setClickViewCard({ ...identity, now: Date.now() })
   }
@@ -591,9 +590,7 @@ function _TableCard({ identity, i }: { identity: CardInstanceIdType; i: number }
   }, [params.position, params.rotation, setSpring, isActive, cardSize, dragging])
   const visibleCards = 0 // useVisibleCardsCount()
   const setClickViewCard = useSetRecoilState(clickViewCardAtom)
-  const isDark = true // luma < 0.2
-  const label = JSON.stringify(identity)
-  const meshDepth = DEPTH.TABLE_CARDS * (i + 1) * (!unmounting && isActive ? 1000 : 1) + depthOffset
+  const meshDepth = DEPTH.TABLE_CARDS * (i + 1) * (!unmounting && isActive ? 10000 : 1) + depthOffset
   const name = `${identity.def_id}-${identity.inst_id}`
   const onClick = async (event: ThreeEvent<MouseEvent>) => {
     // check that this is the object with the highest renderOrder
@@ -645,7 +642,7 @@ function _TableCard({ identity, i }: { identity: CardInstanceIdType; i: number }
   const textOffSurface = -CARD_THICK
   return (
     <>
-      <a.mesh {...(spring as any)} {...bindType} onClick={onClick} renderOrder={meshDepth} name={name}>
+      <a.mesh {...(spring as any)} {...bindType} onClick={onClick} name={name}>
         {/* <planeGeometry args={[1, 1.5, 1, 1]} /> */}
         <boxGeometry args={[1, 1.5, CARD_THICK]} />
         <meshBasicMaterial color='black' transparent opacity={0} />

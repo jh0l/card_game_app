@@ -197,7 +197,7 @@ const tableCardParams = atomFamily<ObjectParams, string>({
     position: [0, 0, 0],
     rotation: [0, 0, 0],
   },
-  effects: [IndexedDBEffect('table_card_params', 'v2')],
+  effects: (key) => [IndexedDBEffect('table_card_params', key)],
 })
 
 function hash(id: CardInstanceIdType) {

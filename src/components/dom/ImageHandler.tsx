@@ -116,7 +116,6 @@ export function ImageHandler({
             size='sm'
             onClick={() => {
               try {
-                console.log('image_url', urlInput)
                 const url = new URL(urlInput).toString()
                 setNewImageObj({ src: url })
               } catch (e) {
@@ -175,7 +174,6 @@ interface ResizeImageProps {
 }
 
 function ImageResizer({ image, setNewImageObj }: ResizeImageProps) {
-  console.log(image)
   const [img, setDomImage] = React.useState<{ o: HTMLImageElement; size: number }>({ o: new Image(), size: 0 })
   React.useEffect(() => {
     const getImageProps = async () => {
@@ -188,7 +186,6 @@ function ImageResizer({ image, setNewImageObj }: ResizeImageProps) {
       xhr.responseType = 'blob'
       xhr.onload = function () {
         const blob = xhr.response
-        console.log(blob, blob.size)
         setDomImage({ o: img, size: blob.size })
       }
       xhr.send()
@@ -200,7 +197,6 @@ function ImageResizer({ image, setNewImageObj }: ResizeImageProps) {
     setLoading(true)
     try {
       if (!image) return
-      console.log('resize image request')
       // use sharp api to resize image
       const formData = new FormData()
       // if file does not exist, create file

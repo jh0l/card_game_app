@@ -67,7 +67,7 @@ export default async function Page({
 
 function SignIn() {
   return (
-    <div className='absolute inset-0 flex h-full w-full flex-col items-center justify-center'>
+    <div className='absolute inset-0 flex size-full flex-col items-center justify-center'>
       <div className='flex flex-col items-center justify-center gap-4'>
         <h2 className='scroll-m-20 text-xl font-extrabold tracking-tight'>Sign in to access this room</h2>
         <SignInWithRedirectBack />
