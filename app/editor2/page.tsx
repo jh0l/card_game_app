@@ -683,9 +683,5 @@ function AnchorButtons({
 
 function CardGraphicsEditor({ cardDefId }: { cardDefId: string }) {
   const [cardDef] = useCardDefinition(cardDefId)
-  return (
-    <div className='flex flex-col gap-2 px-2'>
-      <SelectCardGraphicsComboBox cardDefId={cardDefId} />
-    </div>
-  )
+  return <div className='flex flex-col gap-2 px-2'>{/* <SelectCardGraphicsComboBox cardDefId={cardDefId} /> */}</div>
 }
