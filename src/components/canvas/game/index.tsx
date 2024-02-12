@@ -19,13 +19,13 @@ const PlayArea = dynamic(() => import('@/src/components/canvas/game/PlayArea'), 
 
 export function GameView() {
   return (
-    <View className='mx-auto h-full w-full max-w-screen-lg bg-black opacity-[0.14]'>
+    <View className='mx-auto size-full max-w-screen-lg bg-black opacity-[0.14]'>
       <StatsGl horizontal={false} logsPerSecond={5} className='translate-y-[50px]' />
       <Common />
-        <Players />
-        <Bvh firstHitOnly>
-          <PlayArea />
-        </Bvh>
+      <Players />
+      <Bvh firstHitOnly>
+        <PlayArea />
+      </Bvh>
     </View>
   )
 }

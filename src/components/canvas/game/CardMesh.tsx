@@ -8,6 +8,7 @@ import {
   useImageDefUrl,
   useGraphicDefinition,
   selectedCardDefIdState,
+  highlightSelectedCardDefIdState,
 } from '@/src/state/assets'
 import HtmlPortal from '@/src/helpers/components/HtmlPortal'
 import { CardActive } from '@/src/state/room'
@@ -218,19 +219,22 @@ function _CardMesh({ cardDefId, meshDepth, name }: CardMeshProps) {
   const [cardDef] = useCardDefinition(cardDefId)
   const textDepth = meshDepth + cardDef.graphics.length + 32
   const [selected] = useRecoilState(selectedCardDefIdState)
+  const [highlighted] = useRecoilState(highlightSelectedCardDefIdState)
   return (
     <>
       {cardDef.graphics.map((graphicInst, i) => (
         <ErrorBoundary key={graphicInst.inst_id}>
-          <Suspense fallback={null}>
-            <GraphicMesh
-              name={name}
-              key={graphicInst.inst_id}
-              graphicInst={graphicInst}
-              graphicDefId={graphicInst.graphic_id}
-              renderOrder={meshDepth + i + graphicInst.renderOrderOffset}
-            />
-          </Suspense>
+          {graphicInst.enabled && (
+            <Suspense fallback={null}>
+              <GraphicMesh
+                name={name}
+                key={graphicInst.inst_id}
+                graphicInst={graphicInst}
+                graphicDefId={graphicInst.graphic_id}
+                renderOrder={meshDepth + i + graphicInst.renderOrderOffset}
+              />
+            </Suspense>
+          )}
         </ErrorBoundary>
       ))}
       {Object.entries(cardDef.props || {}).map(
@@ -257,7 +261,7 @@ function _CardMesh({ cardDefId, meshDepth, name }: CardMeshProps) {
           ),
       )}
       {/* render red box at back of card if selected = cardDefId */}
-      {selected === cardDefId && (
+      {selected === cardDefId && highlighted && (
         <mesh renderOrder={meshDepth - 1} position={[0, 0, -0.01]} scale={[1, 1, 1]}>
           <planeGeometry args={[1.1, 1.5]} />
           <meshBasicMaterial color='red' opacity={0.5} />

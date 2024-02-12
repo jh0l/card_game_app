@@ -1,0 +1,500 @@
+/* eslint-disable @next/next/no-img-element */
+import {
+  GraphicDefinitionIdType,
+  GraphicInstanceType,
+  ImageDefinitionIdType,
+  randomId,
+  useCardDefinition,
+  useGraphicDefinition,
+  useGraphicDefinitionIdsList,
+  useImageDefUrl,
+  useSetCardDefinition,
+} from '@/src/state/assets'
+import { Button } from '@/src/components/ui/button'
+import { IndexedDBEffect } from '@/src/state/effects'
+import { atom, useRecoilState } from 'recoil'
+import { useState, useTransition } from 'react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/src/components/ui/popover'
+import { Check, ChevronsUpDown, ExternalLinkIcon } from 'lucide-react'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/src/components/ui/command'
+import { cn } from '@/src/lib/utils'
+import {
+  ColumnSpacingIcon,
+  EyeNoneIcon,
+  HeightIcon,
+  PlusIcon,
+  RowSpacingIcon,
+  SymbolIcon,
+  WidthIcon,
+} from '@radix-ui/react-icons'
+import { Input } from '../../ui/input'
+import { Label } from '../../ui/label'
+import { Vec3 } from '@/src/lib/types'
+import { Checkbox } from '../../ui/checkbox'
+
+const selectedGraphicInstIdState = atom<string>({
+  key: 'selectedGraphicInstId',
+  default: '',
+  effects: [IndexedDBEffect('selected_graphic_inst_id', 'v2')],
+})
+
+export default function CardGraphicsEditor({ cardDefId }: { cardDefId: string }) {
+  const [cardDef, setCardDef] = useCardDefinition(cardDefId)
+  const [selectedInstId, setSelectedInstId] = useRecoilState(selectedGraphicInstIdState)
+  const handleNewGraphicInst = () => {
+    const newId = randomId()
+    setCardDef((x) => {
+      const newInst: GraphicInstanceType = {
+        label: '',
+        inst_id: newId,
+        graphic_id: '',
+        position: [0, 0, 0],
+        rotation: [0, 0, 0],
+        width: 1,
+        renderOrderOffset: 0,
+        enabled: true,
+      }
+      return { ...x, graphics: [...x.graphics, newInst] }
+    })
+    setSelectedInstId(newId)
+  }
+  return (
+    <div className='flex flex-col gap-2'>
+      <div className='flex w-full gap-2 pt-1'>
+        <SelectCardGraphicInstComboBox graphics={cardDef.graphics} />
+        <Button size='sm' variant='outline' className='h-11' onClick={handleNewGraphicInst}>
+          <PlusIcon />
+        </Button>
+      </div>
+      <EditCardGraphic cardDefId={cardDefId} key={selectedInstId} />
+    </div>
+  )
+}
+function SelectCardGraphicInstComboBox({ graphics }: { graphics: GraphicInstanceType[] }) {
+  const [open, setOpen] = useState(false)
+  const [selected, setSelected] = useRecoilState(selectedGraphicInstIdState)
+  const selectedIndex = graphics.findIndex((x) => x.inst_id === selected)
+  const selectedGfx = graphics[selectedIndex]
+  const [graphicDef] = useGraphicDefinition(selectedGfx?.graphic_id || '')
+  if (graphics.length === undefined) {
+    return <div>No Graphics</div>
+  }
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant='outline'
+          size='sm'
+          role='combobox'
+          aria-expanded={open}
+          aria-haspopup='listbox'
+          className='h-11 w-full justify-between'
+        >
+          {selectedGfx && graphicDef ? (
+            <div className='flex w-full items-center justify-start gap-2 text-xs'>
+              <span className='font-mono text-[10px]'>{selectedIndex}</span>
+              <GraphicPreview graphic_id={selectedGfx.graphic_id} />
+              <span>{graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}</span>
+              <span className='text-[0.5rem] text-primary'>{selectedGfx.label}</span>
+              {!selectedGfx.enabled && (
+                <div>
+                  <EyeNoneIcon />
+                </div>
+              )}
+            </div>
+          ) : (
+            'Select Graphic...'
+          )}
+          <ChevronsUpDown className='ml-2 size-4 shrink-0 opacity-50' />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className='max-w-xs'>
+        <Command>
+          <CommandEmpty>No Props</CommandEmpty>
+          <CommandGroup>
+            {graphics.map((graphic, index) => (
+              <GraphicInstCommandItem
+                key={graphic.inst_id}
+                index={index}
+                graphic={graphic}
+                setValue={() => {
+                  setSelected(graphic.inst_id)
+                  setOpen(false)
+                }}
+                value={selected}
+              />
+            ))}
+          </CommandGroup>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function GraphicInstCommandItem({
+  graphic,
+  setValue,
+  value,
+  index,
+}: {
+  graphic: GraphicInstanceType
+  setValue: () => void
+  value: string
+  index: number
+}) {
+  const [graphicDef] = useGraphicDefinition(graphic.graphic_id)
+  return (
+    <CommandItem
+      onSelect={() => {
+        setValue()
+      }}
+    >
+      <div className='flex w-full items-center justify-start gap-2 text-xs'>
+        <span className='font-mono text-[10px]'>{index}</span>
+        <div className='size-8'>
+          <GraphicPreview graphic_id={graphic.graphic_id} />
+        </div>
+        <span>{graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}</span>
+        <span className='text-[0.5rem] text-primary'>{graphic.label}</span>
+        {!graphic.enabled && (
+          <div>
+            <EyeNoneIcon />
+          </div>
+        )}
+      </div>
+      <div className='flex w-full items-center justify-end'>
+        <Check className={cn('mr-2 h-4 w-4', value === graphic.inst_id ? 'opacity-100' : 'opacity-0')} />
+      </div>
+    </CommandItem>
+  )
+}
+
+function EditCardGraphic({ cardDefId }: { cardDefId: string }) {
+  const [cardDef, setCardDef] = useCardDefinition(cardDefId)
+  const [selectedInstId, setSelectedInstId] = useRecoilState(selectedGraphicInstIdState)
+  const [, startTransition] = useTransition()
+  const [error, setError] = useState('')
+  const selectedIndex = cardDef.graphics.findIndex((x) => x.inst_id === selectedInstId)
+  if (selectedIndex === -1) {
+    requestAnimationFrame(() => setSelectedInstId(cardDef.graphics[0]?.inst_id || ''))
+  }
+  const selectedGfx = cardDef.graphics[selectedIndex]
+  if (!selectedGfx) {
+    return null
+  }
+  function handleChange<K extends keyof GraphicInstanceType, V extends GraphicInstanceType[K]>(k: K, v: V) {
+    startTransition(() => {
+      setCardDef((x) => {
+        const gfx = x.graphics.find((g) => g.inst_id === selectedInstId)
+        if (!gfx) return x
+        const newGfx = { ...gfx }
+        newGfx[k] = v
+        const newX = { ...x }
+        newX.graphics = x.graphics.map((g) => (g.inst_id === selectedInstId ? newGfx : g))
+        return newX
+      })
+    })
+  }
+  const handleNewIndex = (index: number) => {
+    if (index < 0 || index >= cardDef.graphics.length)
+      return setError(`index must be within 0 and ${cardDef.graphics.length - 1}`)
+    else setError('')
+    startTransition(() => {
+      setCardDef((x) => {
+        const gfx = x.graphics.find((g) => g.inst_id === selectedInstId)
+        if (!gfx) return x
+        const newGfx = { ...gfx }
+        const newX = { ...x }
+        newX.graphics = x.graphics.filter((g) => g.inst_id !== selectedInstId)
+        newX.graphics.splice(index, 0, newGfx)
+        return newX
+      })
+    })
+  }
+  const handleEnabled = () => {
+    handleChange('enabled', !selectedGfx.enabled)
+  }
+  const handleLabel: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    handleChange('label', e.currentTarget.value)
+  }
+  const handleWidth: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    handleChange('width', parseFloat(e.currentTarget.value))
+  }
+  const handleRenderOrder: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    handleChange('renderOrderOffset', parseFloat(e.currentTarget.value))
+  }
+  const handleIndex: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    handleNewIndex(parseInt(e.currentTarget.value))
+  }
+  const handleDuplicate = () => {
+    const newId = randomId()
+    startTransition(() => {
+      setCardDef((x) => {
+        const gfx = x.graphics.find((g) => g.inst_id === selectedInstId)
+        if (!gfx) return x
+        const newGfx = { ...gfx }
+        newGfx.inst_id = newId
+        const newX = { ...x }
+        newX.graphics = [...x.graphics]
+        newX.graphics.push(newGfx)
+        return newX
+      })
+      setSelectedInstId(newId)
+    })
+  }
+  const handleDelete = () => {
+    const res = confirm('Are you sure you want to delete this graphic?')
+    if (!res) return
+    startTransition(() => {
+      setCardDef((x) => {
+        const newX = { ...x }
+        newX.graphics = x.graphics.filter((g) => g.inst_id !== selectedInstId)
+        return newX
+      })
+      setSelectedInstId(
+        cardDef.graphics[selectedIndex + 1]?.inst_id || cardDef.graphics[selectedIndex - 1]?.inst_id || '',
+      )
+    })
+  }
+  return (
+    <>
+      <div className='w-full select-text text-center font-mono text-[0.6rem] opacity-50'>{selectedGfx.inst_id}</div>
+      <div className='flex w-full items-center justify-start gap-2'>
+        <Checkbox checked={selectedGfx.enabled} onClick={handleEnabled} />
+        <div>
+          <span className='w-full text-xs opacity-50'>Graphic {selectedGfx.enabled ? 'Enabled' : 'Disabled'}</span>
+        </div>
+      </div>
+      <Label size='2xs'>Label</Label>
+      <Input defaultValue={selectedGfx.label} onChange={handleLabel} />
+      <Label size='2xs' htmlFor='graphic_definition'>
+        Graphic Definition
+      </Label>
+      <GraphicDefCombobox value={selectedGfx.graphic_id} setValue={(r) => handleChange('graphic_id', r)} />
+      <div className='w-full select-text text-center font-mono text-[0.6rem] opacity-50'>{selectedGfx.graphic_id}</div>
+      <Label size='2xs' htmlFor='position'>
+        Position
+      </Label>
+      <EditGfxPosition position={selectedGfx.position} setPosition={(r) => handleChange('position', r)} />
+      <Label size='2xs' htmlFor='position'>
+        Rotation (Degrees)
+      </Label>
+      <EditGfxRotation rotation={selectedGfx.rotation} setRotation={(r) => handleChange('rotation', r)} />
+      <Label size='2xs' className='flex items-center justify-around'>
+        <span>Scale</span>
+        <span>R.Order -/+</span>
+        <span>Index</span>
+      </Label>
+      <div className='flex w-full items-center justify-between gap-2'>
+        <Input type='number' step={0.05} defaultValue={selectedGfx.width} onChange={handleWidth} />
+        <Input type='number' defaultValue={selectedGfx.renderOrderOffset} onChange={handleRenderOrder} />
+        <Input type='number' defaultValue={selectedIndex} onChange={handleIndex} />
+      </div>
+      {error && <div className='w-full text-right text-xs text-red-500'>{error}</div>}
+      <div className='flex w-full items-center justify-between gap-2 pt-2'>
+        <Label size='2xs' className='w-full'>
+          Graphic Instance
+        </Label>
+        <Button variant='secondary' size='xs' onClick={handleDuplicate}>
+          clone
+        </Button>
+        <Button variant='destructive' size='xs' onClick={handleDelete}>
+          delete
+        </Button>
+      </div>
+    </>
+  )
+}
+
+function GraphicDefCombobox({ value, setValue }: { value: string; setValue: (value: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const graphicDefIds = useGraphicDefinitionIdsList()
+  const [graphicDef] = useGraphicDefinition(value)
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          id='graphic_definition'
+          variant='outline'
+          role='combobox'
+          aria-expanded={open}
+          className='w-full justify-between'
+          size='sm'
+        >
+          {graphicDef.image.image_id ? (
+            <div className='flex items-center justify-start gap-2'>
+              <Check className={'mr-2 size-4 opacity-100'} />
+              <div className='flex'>
+                <ImagePreview image={graphicDef.image} />
+                <ImagePreview image={graphicDef.bumpMap} />
+                <ImagePreview image={graphicDef.iridescentMap} />
+              </div>
+              {graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}
+            </div>
+          ) : (
+            'Select Graphic...'
+          )}
+          <ChevronsUpDown className='ml-2 size-4 shrink-0 opacity-50' />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className='w-full max-w-xs p-0'>
+        <Command>
+          {graphicDefIds.length > 3 && <CommandInput placeholder='Search Graphics...' />}
+          {graphicDefIds.length < 1 && <CommandInput placeholder='No graphics' />}
+          <CommandEmpty>No Graphics.</CommandEmpty>
+          <CommandGroup>
+            {graphicDefIds.map((defId) => (
+              <GraphicDefCommandItem
+                key={defId}
+                graphic_id={defId}
+                value={value}
+                setValue={() => {
+                  setValue(defId)
+                  setOpen(false)
+                }}
+              />
+            ))}
+          </CommandGroup>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function GraphicDefCommandItem({
+  graphic_id,
+  setValue,
+  value,
+}: {
+  graphic_id: string
+  setValue: () => void
+  value: string
+}) {
+  const [graphicDef] = useGraphicDefinition(graphic_id)
+  return (
+    <CommandItem
+      className='relative'
+      onSelect={() => {
+        setValue()
+      }}
+    >
+      <div className='flex w-full justify-start gap-2'>
+        <div className='flex'>
+          <ImagePreview image={graphicDef.image} />
+          <ImagePreview image={graphicDef.bumpMap} />
+          <ImagePreview image={graphicDef.iridescentMap} />
+        </div>
+        {graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}
+        <Check className={cn('mr-2 h-4 w-4', value === graphic_id ? 'opacity-100' : 'opacity-0')} />
+      </div>
+      <div className='absolute bottom-0 right-0 w-full select-text text-center font-mono text-[0.6rem] opacity-50'>
+        {graphic_id}
+      </div>
+    </CommandItem>
+  )
+}
+
+function GraphicPreview({ graphic_id, showAll }: { graphic_id: string; showAll?: boolean }) {
+  const [graphicDef] = useGraphicDefinition(graphic_id)
+  return (
+    <div className='flex'>
+      <ImagePreview image={graphicDef.image} />
+      {showAll && (
+        <>
+          <ImagePreview image={graphicDef.bumpMap} />
+          <ImagePreview image={graphicDef.iridescentMap} />
+        </>
+      )}
+    </div>
+  )
+}
+
+function ImagePreview({ image }: { image?: ImageDefinitionIdType }) {
+  const imageDef = useImageDefUrl(image || { image_id: '' })
+  return <img src={imageDef.url} alt='.' className='max-h-8 w-full object-contain pr-0.5' />
+}
+
+function EditGfxPosition({ position, setPosition }: { position: Vec3; setPosition: (p: Vec3) => void }) {
+  const [, setLocalState] = useState(position)
+  const handleUpdatePosition = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const id = parseInt(e.currentTarget.id)
+    const value = parseFloat(e.currentTarget.value) || 0
+    setLocalState((p) => {
+      if (isNaN(id)) return p
+      const newP = [...p] as Vec3
+      newP[id] = value
+      requestAnimationFrame(() => setPosition(newP))
+      return newP
+    })
+  }
+  return (
+    <div className='flex w-full gap-2'>
+      <div className='flex items-center gap-1'>
+        <WidthIcon />
+        <Input id='0' type='number' step={0.05} defaultValue={position[0]} onChange={handleUpdatePosition} />
+      </div>
+      <div className='flex items-center gap-1'>
+        <HeightIcon />
+        <Input id='1' type='number' step={0.05} defaultValue={position[1]} onChange={handleUpdatePosition} />
+      </div>
+      <div className='flex items-center gap-1'>
+        <ExternalLinkIcon />
+        <Input id='2' type='number' step={0.05} defaultValue={position[2]} onChange={handleUpdatePosition} />
+      </div>
+    </div>
+  )
+}
+function degreesToRadians(degrees: number) {
+  return (degrees * Math.PI) / 180
+}
+function radiansToDegrees(radians: number) {
+  return (radians * 180) / Math.PI
+}
+function EditGfxRotation({ rotation, setRotation }: { rotation: Vec3; setRotation: (p: Vec3) => void }) {
+  const [local, setLocalState] = useState(rotation)
+  const handleUpdateRotation = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const id = parseInt(e.currentTarget.id)
+    const value = parseInt(e.currentTarget.value) || 0
+    setLocalState((p) => {
+      if (isNaN(value) || isNaN(id)) return p
+      const newP = [...p] as Vec3
+      newP[id] = degreesToRadians(value)
+      requestAnimationFrame(() => setRotation(newP))
+      return newP
+    })
+  }
+  return (
+    <div className='flex w-full gap-2'>
+      <div className='flex items-center gap-1'>
+        <RowSpacingIcon />
+        <Input
+          id='0'
+          type='number'
+          step={5}
+          defaultValue={radiansToDegrees(local[0])}
+          onChange={handleUpdateRotation}
+        />
+      </div>
+      <div className='flex items-center gap-1'>
+        <ColumnSpacingIcon />
+        <Input
+          id='1'
+          type='number'
+          step={5}
+          defaultValue={radiansToDegrees(local[1])}
+          onChange={handleUpdateRotation}
+        />
+      </div>
+      <div className='flex items-center gap-1'>
+        <SymbolIcon />
+        <Input
+          id='2'
+          type='number'
+          step={5}
+          defaultValue={radiansToDegrees(local[2])}
+          onChange={handleUpdateRotation}
+        />
+      </div>
+    </div>
+  )
+}

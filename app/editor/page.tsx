@@ -414,6 +414,8 @@ function CardDefinitionGraphicsArray({
       rotation: [0, 0, 0],
       width: 1,
       renderOrderOffset: 0,
+      enabled: true,
+      label: '',
     })
   }
   const handleReorderGraphicIndexes = (index: number) => (newIndex: number) => {

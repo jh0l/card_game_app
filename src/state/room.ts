@@ -216,6 +216,7 @@ export const useTableCardAdd = () => {
     [],
   )
 }
+export const useTableCardListSet = () => useSetRecoilState(tableCardList)
 
 export const useTableCardParams = (identity: CardInstanceIdType) => {
   return useRecoilState(tableCardParams(hash(identity)))

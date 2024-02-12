@@ -6,6 +6,7 @@ import {
   useRecoilState,
   useRecoilState_TRANSITION_SUPPORT_UNSTABLE,
   useRecoilValue,
+  useResetRecoilState,
   useSetRecoilState,
 } from 'recoil'
 import { IndexedDBEffect, localStorageEffect } from '@/src/state/effects'
@@ -22,7 +23,7 @@ export const cardDefinitionIds = atom<string[]>({
   default: [],
   effects: [IndexedDBEffect('card_definition_id_list', '')],
 })
-export const useCardDefinitionList = () => useRecoilState(cardDefinitionIds)
+export const useCardDefinitionList = () => useRecoilState_TRANSITION_SUPPORT_UNSTABLE(cardDefinitionIds)
 export const useCardDefinitionsListSet = () => useSetRecoilState(cardDefinitionIds)
 
 /** used for looking up ImageDefinition in imageDefinitionIndexed */
@@ -39,12 +40,14 @@ export interface CardInstanceIdType extends Readonly<{ [key: string]: Serializab
 }
 
 export interface GraphicInstanceType {
+  label: string
   inst_id: string
   graphic_id: string
   position: Vec3
   rotation: Vec3
   width: number
   renderOrderOffset: number
+  enabled: boolean
 }
 export type VerticalAnchorType = 'top' | 'middle' | 'bottom'
 export type HorizontalAnchorType = 'left' | 'center' | 'right'
@@ -104,7 +107,7 @@ const cardDefinition = atomFamily<CardDefinitionType, string>({
 })
 export const useCardDefinition = (id: string) => useRecoilState_TRANSITION_SUPPORT_UNSTABLE(cardDefinition(id))
 export const useSetCardDefinition = (id: string) => useSetRecoilState(cardDefinition(id))
-
+export const useResetCardDefinition = (id: string) => useResetRecoilState(cardDefinition(id))
 /** GRAPHIC STATE */
 export interface GraphicDefinitionType {
   name: string
@@ -118,7 +121,7 @@ export interface GraphicDefinitionType {
 const graphicDefinition = atomFamily<GraphicDefinitionType, string>({
   key: 'graphicDefinition',
   default: {
-    name: '',
+    name: 'Select Graphic',
     image: { image_id: '' },
     bumpMap: { image_id: '' },
     iridescentMap: { image_id: '' },
@@ -230,4 +233,16 @@ export const selectedCardDefIdState = atom<string>({
   key: 'selectedCardDefId',
   default: '',
   effects: [IndexedDBEffect('selectedCardDefId', '')],
+})
+
+export const highlightSelectedCardDefIdState = atom<boolean>({
+  key: 'highlightSelectedCardDefId',
+  default: false,
+  effects: [IndexedDBEffect('highlightSelectedCardDefId', '')],
+})
+
+export const selectedGraphicDefIdState = atom<string>({
+  key: 'selectedGraphicDefId',
+  default: '',
+  effects: [IndexedDBEffect('selectedGfxDefId', '')],
 })

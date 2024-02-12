@@ -15,6 +15,7 @@ import { Bounds, useDrag } from '@use-gesture/react'
 import Image from 'next/image'
 import { MouseEventHandler, Suspense, useEffect, useRef, useState } from 'react'
 import SpinnerLight from './SpinnerLight'
+import { useSession } from 'next-auth/react'
 
 type BoundsExt = Bounds & {
   mid: number
@@ -209,13 +210,14 @@ function _HandScrubber() {
         )}
       </div>
       <div className='absolute inset-0 h-0 w-full' ref={parentRef}>
+        <ProfilePicture />
         {cards.length > 0 && (
           <animated.div
             className='flex h-14 items-center justify-center overflow-hidden rounded text-xs shadow-inner outline outline-primary/75'
             style={{ touchAction: 'none', ...spring }}
             {...bindType}
           >
-            👁👄👁
+            {cards.length > 1 ? '👁👄👁' : ''}
           </animated.div>
         )}
       </div>
@@ -232,8 +234,8 @@ function CardButton({ identity, onClick }: { identity: string; onClick: MouseEve
     <button className='relative h-14 w-[37.333px]' onClick={onClick}>
       <img
         src={img.url}
-        alt='a playing card'
-        className='pointer-events-none h-fit w-full max-w-[37.333px] rounded object-cover mix-blend-overlay'
+        alt='card'
+        className='pointer-events-none h-fit w-full max-w-[37.333px] rounded object-cover text-xs mix-blend-overlay'
       />
       <div className='absolute inset-0 top-3/4 flex items-center justify-center text-xs'></div>
     </button>
@@ -286,3 +288,20 @@ function CardButton({ identity, onClick }: { identity: string; onClick: MouseEve
 //     </div>
 //   )
 // }
+
+function ProfilePicture() {
+  const session = useSession()
+  if (session?.data?.user) {
+    const { user } = session.data
+    const image = (user && user.image) || ''
+    // @ts-ignore
+    const email = (user && user.username) || user.email || ''
+    return (
+      <div className='absolute bottom-2 left-2 flex max-w-xs items-start gap-2 rounded bg-background/90 p-2'>
+        <Image className='rounded' src={image} width={32} height={32} alt='your profile picture' />
+        <div className='w-full max-w-xs break-before-all overflow-auto pr-1'>{email}</div>
+      </div>
+    )
+  }
+  return null
+}

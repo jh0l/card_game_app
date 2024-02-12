@@ -25,7 +25,7 @@ export default function ClientLayout({ children }) {
               position: 'relative',
               width: ' 100%',
               height: '100%',
-              overflow: 'auto',
+              overflow: 'hidden',
               touchAction: 'auto',
             }}
           >
@@ -44,7 +44,7 @@ export default function ClientLayout({ children }) {
             />
           </div>
           <div
-            className='pointer-events-none absolute inset-x-0 top-0 mx-auto h-full w-full max-w-screen-lg'
+            className='pointer-events-none absolute inset-0 mx-auto size-full max-h-screen max-w-screen-lg overflow-hidden'
             id='Html-portal'
           ></div>
           <div className='fixed left-0 top-0 z-20'>
