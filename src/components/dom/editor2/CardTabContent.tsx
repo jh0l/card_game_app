@@ -218,13 +218,13 @@ export function CardsContent() {
         onMouseLeave={handleResize}
         direction='vertical'
         className='max-w-xs rounded border bg-background/50'
-        id='editor_panel_group'
+        id='card_editor_panel_group'
       >
         <ResizablePanel
-          key={sizes[0] + 'panel1'}
           defaultSize={sizes[0]}
+          key={sizes[0] + 'p1'}
           className='shadow-inner shadow-black/10'
-          id='editor_panel_1'
+          id='card_editor_panel_1'
         >
           <ScrollArea className='size-full'>
             <div className='flex h-full flex-wrap items-center justify-around gap-1 p-1' ref={listRef}>
@@ -237,14 +237,14 @@ export function CardsContent() {
         </ResizablePanel>
         <ResizableHandle withHandle id='editor_panel_handle' />
         <ResizablePanel
+          key={sizes[1] + 'p2'}
           className='overflow-y-scroll shadow-inner shadow-black/10'
-          key={sizes[0] + 'panel2'}
           defaultSize={sizes[1]}
-          id='editor_panel_2'
+          id='card_editor_panel_2'
         >
           <ScrollArea className='h-full'>
             <CardEditor handleFocus={handleFocus} />
-            <div className='my-10 flex w-full items-center justify-center opacity-10'>_____</div>
+            <div className='my-20 flex w-full items-center justify-center opacity-10'>_____</div>
           </ScrollArea>
         </ResizablePanel>
       </ResizablePanelGroup>
@@ -311,7 +311,6 @@ function CardEditor({ handleFocus }: { handleFocus: (cardDefId: string) => void 
   const reset = useResetCardDefinition(selectedCardDefId)
   const [highlight, setHighlight] = useRecoilState(highlightSelectedCardDefIdState)
   const [tabValue, setTabValue] = useRecoilState(selectedCardEditorTabState)
-  const handleTabChange = (value: string) => setTabValue(value)
   const handleSetHighlight = () => setHighlight((x) => !x)
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // update cardDef name
@@ -336,6 +335,7 @@ function CardEditor({ handleFocus }: { handleFocus: (cardDefId: string) => void 
         return prev.filter((id) => id.def_id !== selectedCardDefId)
       })
       reset()
+      setSelected('')
     }
   }
   return (
@@ -375,7 +375,7 @@ function CardEditor({ handleFocus }: { handleFocus: (cardDefId: string) => void 
         className='w-full max-w-xs'
         key={selectedCardDefId}
         value={tabValue}
-        onValueChange={handleTabChange}
+        onValueChange={setTabValue}
       >
         <TabsList className='grid w-full grid-cols-3' selected>
           <TabsTrigger value='props'>Props</TabsTrigger>

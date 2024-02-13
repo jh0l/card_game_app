@@ -90,7 +90,7 @@ function SelectCardGraphicInstComboBox({ graphics }: { graphics: GraphicInstance
           aria-haspopup='listbox'
           className='h-11 w-full justify-between'
         >
-          {selectedGfx && graphicDef ? (
+          {selectedGfx && graphicDef.name ? (
             <div className='flex w-full items-center justify-start gap-2 text-xs'>
               <span className='font-mono text-[10px]'>{selectedIndex}</span>
               <GraphicPreview graphic_id={selectedGfx.graphic_id} />
@@ -103,7 +103,7 @@ function SelectCardGraphicInstComboBox({ graphics }: { graphics: GraphicInstance
               )}
             </div>
           ) : (
-            'Select Graphic...'
+            <span className='text-xs italic text-gray-500/70'>Uninitialized</span>
           )}
           <ChevronsUpDown className='ml-2 size-4 shrink-0 opacity-50' />
         </Button>
@@ -149,20 +149,20 @@ function GraphicInstCommandItem({
         setValue()
       }}
     >
-      <div className='flex w-full items-center justify-start gap-2 text-xs'>
+      <div className='flex w-full items-center justify-between gap-2 text-xs'>
         <span className='font-mono text-[10px]'>{index}</span>
         <div className='size-8'>
           <GraphicPreview graphic_id={graphic.graphic_id} />
         </div>
-        <span>{graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}</span>
-        <span className='text-[0.5rem] text-primary'>{graphic.label}</span>
-        {!graphic.enabled && (
-          <div>
-            <EyeNoneIcon />
-          </div>
-        )}
-      </div>
-      <div className='flex w-full items-center justify-end'>
+        <div className='flex w-full items-center justify-between'>
+          {graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}
+          <span className='text-[0.5rem] text-primary'>{graphic.label}</span>
+          {!graphic.enabled && (
+            <div>
+              <EyeNoneIcon />
+            </div>
+          )}
+        </div>
         <Check className={cn('mr-2 h-4 w-4', value === graphic.inst_id ? 'opacity-100' : 'opacity-0')} />
       </div>
     </CommandItem>
@@ -261,8 +261,10 @@ function EditCardGraphic({ cardDefId }: { cardDefId: string }) {
       <div className='w-full select-text text-center font-mono text-[0.6rem] opacity-50'>{selectedGfx.inst_id}</div>
       <div className='flex w-full items-center justify-start gap-2'>
         <Checkbox checked={selectedGfx.enabled} onClick={handleEnabled} />
-        <div>
-          <span className='w-full text-xs opacity-50'>Graphic {selectedGfx.enabled ? 'Enabled' : 'Disabled'}</span>
+        <div onClick={handleEnabled}>
+          <span className='w-full cursor-pointer text-xs opacity-50'>
+            Graphic {selectedGfx.enabled ? 'Enabled' : 'Disabled'}
+          </span>
         </div>
       </div>
       <Label size='2xs'>Label</Label>
@@ -332,7 +334,7 @@ function GraphicDefCombobox({ value, setValue }: { value: string; setValue: (val
               {graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}
             </div>
           ) : (
-            'Select Graphic...'
+            <span className='text-xs italic text-gray-500/70'>Select Definition</span>
           )}
           <ChevronsUpDown className='ml-2 size-4 shrink-0 opacity-50' />
         </Button>

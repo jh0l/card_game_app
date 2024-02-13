@@ -57,7 +57,6 @@ function Wrapper({ children, selected }: { children: React.ReactNode[] | React.R
   React.useEffect(() => {
     React.Children.forEach(children, (child, i) => {
       if (React.isValidElement(child)) {
-        console.log('CHILD', child.props.value, selected, i)
         if (child.props.value === selected) {
           setIndex({ index: i, count: React.Children.count(children) })
         }

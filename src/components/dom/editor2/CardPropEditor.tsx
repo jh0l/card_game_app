@@ -310,7 +310,9 @@ function EditCardProp({ cardDefId }: { cardDefId: string }) {
       <div className='flex w-full items-center justify-start gap-2'>
         <Checkbox checked={prop.enabled} onClick={handleEnableProp} />
         <div>
-          <span className='w-full text-xs opacity-50'>Property {prop.enabled ? 'Enabled' : 'Disabled'}</span>
+          <span onClick={handleEnableProp} className='w-full cursor-pointer text-xs opacity-50'>
+            Property {prop.enabled ? 'Enabled' : 'Disabled'}
+          </span>
         </div>
       </div>
       {inputType === 'string' && (

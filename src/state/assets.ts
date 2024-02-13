@@ -121,7 +121,7 @@ export interface GraphicDefinitionType {
 const graphicDefinition = atomFamily<GraphicDefinitionType, string>({
   key: 'graphicDefinition',
   default: {
-    name: 'Select Graphic',
+    name: '',
     image: { image_id: '' },
     bumpMap: { image_id: '' },
     iridescentMap: { image_id: '' },
@@ -132,6 +132,8 @@ const graphicDefinition = atomFamily<GraphicDefinitionType, string>({
 })
 export const useGraphicDefinition = (id: string) => useRecoilState(graphicDefinition(id))
 export const useGraphicDefinitionSet = (id: string) => useSetRecoilState(graphicDefinition(id))
+export const useGraphicDefinitionReset = (id: string) => useResetRecoilState(graphicDefinition(id))
+
 const graphicDefinitionIds = atom<string[]>({
   key: 'graphicDefinitionIds',
   default: [],

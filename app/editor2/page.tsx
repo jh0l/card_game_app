@@ -8,6 +8,8 @@ import dynamic from 'next/dynamic'
 import { useState } from 'react'
 import GraphicsContent from '@/src/components/dom/editor2/GraphicsEditor'
 import { HandContent, CardsContent } from '@/src/components/dom/editor2/CardTabContent'
+import { atom, useRecoilState } from 'recoil'
+import { IndexedDBEffect } from '@/src/state/effects'
 const GameClient = dynamic(() => import('@/src/components/GameClient'), { ssr: false, loading: SpinnerLight })
 
 export default function Page() {
@@ -47,10 +49,17 @@ function Editor() {
   )
 }
 
+const selectedEditorTab = atom<string>({
+  key: 'selectedEditorTab',
+  default: 'hand',
+  effects: [IndexedDBEffect('selectedEditorTab', '')],
+})
+const useSelectedEditorTab = () => useRecoilState(selectedEditorTab)
 // contains tabs for Cards, Graphics, Images, Table
 function EditorContent() {
+  const [selected, setSelected] = useSelectedEditorTab()
   return (
-    <Tabs defaultValue='cards' className='size-full max-w-xs'>
+    <Tabs defaultValue='hand' className='size-full max-w-xs' value={selected} onValueChange={setSelected}>
       <TabsList className='grid w-full grid-cols-5' selected>
         <TabsTrigger value='hand'>hand</TabsTrigger>
         <TabsTrigger value='cards'>cards</TabsTrigger>

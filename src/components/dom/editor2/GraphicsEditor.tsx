@@ -14,6 +14,9 @@ import {
   useGraphicDefinition,
   useGraphicDefinitionIds,
   useGraphicDefinitionIdsList,
+  useGraphicDefinitionIdsListSet,
+  useGraphicDefinitionReset,
+  useGraphicDefinitionSet,
   useImageDefUrl,
 } from '@/src/state/assets'
 import { IndexedDBEffect } from '@/src/state/effects'
@@ -83,13 +86,13 @@ export default function GraphicsContent() {
         onMouseLeave={handleResize}
         direction='vertical'
         className='max-w-xs rounded border bg-background/50'
-        id='editor_panel_group'
+        id='gfx_editor_panel_group'
       >
         <ResizablePanel
-          key={sizes[0] + 'panel1'}
           defaultSize={sizes[0]}
+          key={sizes[0] + 'p1'}
           className='shadow-inner shadow-black/10'
-          id='editor_panel_1'
+          id='gfx_editor_panel_1'
         >
           <ScrollArea className='size-full'>
             <div className='flex h-full flex-wrap items-center justify-around gap-1 p-1' ref={listRef}>
@@ -102,14 +105,14 @@ export default function GraphicsContent() {
         </ResizablePanel>
         <ResizableHandle withHandle id='editor_panel_handle' />
         <ResizablePanel
+          key={sizes[1] + 'p2'}
           className='overflow-y-scroll shadow-inner shadow-black/10'
-          key={sizes[0] + 'panel2'}
           defaultSize={sizes[1]}
-          id='editor_panel_2'
+          id='gfx_editor_panel_2'
         >
           <ScrollArea className='h-full'>
             <GraphicEditor handleFocus={handleFocus} />
-            <div className='my-10 flex w-full items-center justify-center opacity-10'>_____</div>
+            <div className='my-20 flex w-full items-center justify-center opacity-10'>_____</div>
           </ScrollArea>
         </ResizablePanel>
       </ResizablePanelGroup>
@@ -145,9 +148,61 @@ function GfxDefinitionListItem({ definitionId, index }: { definitionId: string; 
 
 function GraphicInstancePreview({ graphic }: { graphic: GraphicDefinitionType }) {
   const imageDef = useImageDefUrl(graphic.image)
-  return <img src={imageDef.url} alt='.' className='h-8 object-contain pr-0.5' />
+  const bumpMapDef = useImageDefUrl(graphic.bumpMap)
+  const iridMapDef = useImageDefUrl(graphic.iridescentMap)
+  return (
+    <div className='flex'>
+      <img src={imageDef.url} alt='.' className='h-8 object-contain pr-0.5' />
+      <img src={bumpMapDef.url} alt='.' className='h-8 object-contain pr-0.5' />
+      <img src={iridMapDef.url} alt='.' className='h-8 object-contain pr-0.5' />
+    </div>
+  )
 }
 
 function GraphicEditor({ handleFocus }: { handleFocus: (gfxDefId: string) => void }) {
-  return null
+  const [clonedId, setClonedId] = useState(() => randomId())
+  const setClone = useGraphicDefinitionSet(clonedId)
+
+  const setIds = useGraphicDefinitionIdsListSet()
+  const [selectedGfxDefId, setSelected] = useRecoilState(selectedGraphicDefIdState)
+  const [gfxDef] = useGraphicDefinition(selectedGfxDefId)
+  const reset = useGraphicDefinitionReset(selectedGfxDefId)
+  const handleClone = () => {
+    const deepClone = JSON.parse(JSON.stringify(gfxDef)) as GraphicDefinitionType
+    setClone({ ...deepClone })
+    setIds((prev) => [...prev, clonedId])
+    setSelected(clonedId)
+    setClonedId(randomId())
+  }
+  const handleDelete = () => {
+    if (confirm('Are you sure you want to delete this graphic definition')) {
+      setIds((prev) => prev.filter((x) => x !== selectedGfxDefId))
+      reset()
+      setSelected('')
+    }
+  }
+  return (
+    <div className='relative h-full px-2' key={selectedGfxDefId}>
+      <div className='flex w-full items-center justify-between gap-2 py-2'>
+        <Label size='2xs'>Graphic Definition</Label>
+        <div className='flex gap-2'>
+          <Button size='xs' variant='secondary' onClick={handleClone}>
+            Clone
+          </Button>
+          <Button size='xs' variant='destructive' onClick={handleDelete}>
+            Delete
+          </Button>
+        </div>
+      </div>
+      <div className='w-full select-text text-center font-mono text-[10px] opacity-40'>{selectedGfxDefId}</div>
+      <div className='flex w-full items-center justify-between pb-0.5 text-xs'>
+        <Input id='card_name' defaultValue={gfxDef.name} className='h-9' />
+        <div className='flex items-center justify-center pl-2'>
+          <Button size='icon' variant='outline' className='scale-75' onClick={() => handleFocus(selectedGfxDefId)}>
+            <Focus />
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
 }
