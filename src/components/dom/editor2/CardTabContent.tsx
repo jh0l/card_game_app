@@ -102,7 +102,7 @@ function CardDefComboBox({ value, setValue }: { value?: string; setValue: (value
       <PopoverContent className='w-full max-w-xs p-0'>
         <Command>
           {cardDefIds.length > 3 && <CommandInput placeholder='Search Cards...' />}
-          {cardDefIds.length < 1 && <CommandInput placeholder='No cards' />}
+          {cardDefIds.length === 0 && <CommandGroup heading='No Card Definitions' />}
           <CommandEmpty>No Cards.</CommandEmpty>
           <CommandGroup>
             {cardDefIds.map((defId) => (
@@ -151,7 +151,7 @@ const ResizablePanelSizes = atom<number[]>({
 export function CardsContent() {
   const [, startTransition] = useTransition()
   const [sizes, setSizes] = useRecoilState_TRANSITION_SUPPORT_UNSTABLE(ResizablePanelSizes)
-  const [cardDefinitionIds] = useCardDefinitionList()
+  const [cardDefinitionIds, setCardDefIds] = useCardDefinitionList()
   const listRef = useRef<HTMLDivElement>(null)
   const handleFocus = (cardDefId: string) => {
     // get CardDefinitionListItem index
@@ -203,6 +203,7 @@ export function CardsContent() {
       props: {},
     })
     setSelectedCardDefId(newCardId)
+    setCardDefIds((prev) => [...prev, newCardId])
     setNewCardId(randomId())
   }
   return (
@@ -341,7 +342,7 @@ function CardEditor({ handleFocus }: { handleFocus: (cardDefId: string) => void 
   return (
     <div className='relative h-full px-2' key={selectedCardDefId}>
       <div className='flex w-full items-center justify-between gap-2 py-2'>
-        <Label size='2xs'>Card Definition</Label>
+        <Label size='xs'>Card Definition</Label>
         <div className='flex gap-2'>
           <Button size='xs' variant='secondary' onClick={handleClone}>
             Clone
@@ -351,8 +352,11 @@ function CardEditor({ handleFocus }: { handleFocus: (cardDefId: string) => void 
           </Button>
         </div>
       </div>
-      <div className='w-full select-text text-center font-mono text-[10px] opacity-40'>{selectedCardDefId}</div>
 
+      <Label size='2xs' className='flex'>
+        <div className='w-full'>Definition Name </div>
+        <div className='w-full select-text text-center font-mono text-[10px] opacity-40'>{selectedCardDefId}</div>
+      </Label>
       <div className='flex w-full items-center justify-between pb-0.5 text-xs'>
         <Input id='card_name' defaultValue={cardDef.name} onChange={handleNameChange} className='h-9' />
         <div className='flex items-center justify-center pl-2'>

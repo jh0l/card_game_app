@@ -184,8 +184,7 @@ function CardTypeComboBox({ cardDefId }: { cardDefId: string }) {
       <PopoverContent className='max-w-xs'>
         <Command>
           {cardTypes.length > 6 && <CommandInput placeholder='Search Types...' />}
-          {cardTypes.length < 1 && <CommandInput placeholder='No types' />}
-          <CommandEmpty>No Types.</CommandEmpty>
+          <CommandEmpty>No Types Match Criteria.</CommandEmpty>
           <CommandGroup>
             {cardTypes.map((defId) => (
               <CommandItem key={defId} value={defId} onSelect={handleChangeCardType}>
@@ -242,8 +241,7 @@ function SelectCardPropComboBox({ cardDefId }: { cardDefId: string }) {
       </PopoverTrigger>
       <PopoverContent className='max-w-xs'>
         <Command>
-          <CommandEmpty>No Props</CommandEmpty>
-          <CommandGroup>
+          <CommandGroup heading='properties'>
             {Object.values(cardDef.props).map(({ prop_id, enabled }) => (
               <CommandItem
                 key={prop_id}

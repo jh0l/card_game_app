@@ -31,6 +31,7 @@ import { Input } from '../../ui/input'
 import { Label } from '../../ui/label'
 import { Vec3 } from '@/src/lib/types'
 import { Checkbox } from '../../ui/checkbox'
+import { ImagePreview } from './GraphicsEditor'
 
 const selectedGraphicInstIdState = atom<string>({
   key: 'selectedGraphicInstId',
@@ -90,7 +91,7 @@ function SelectCardGraphicInstComboBox({ graphics }: { graphics: GraphicInstance
           aria-haspopup='listbox'
           className='h-11 w-full justify-between'
         >
-          {selectedGfx && graphicDef.name ? (
+          {selectedGfx && selectedGfx.graphic_id ? (
             <div className='flex w-full items-center justify-start gap-2 text-xs'>
               <span className='font-mono text-[10px]'>{selectedIndex}</span>
               <GraphicPreview graphic_id={selectedGfx.graphic_id} />
@@ -103,14 +104,15 @@ function SelectCardGraphicInstComboBox({ graphics }: { graphics: GraphicInstance
               )}
             </div>
           ) : (
-            <span className='text-xs italic text-gray-500/70'>Uninitialized</span>
+            <span className='text-xs italic text-gray-500/70'>Select Graphic Instance</span>
           )}
           <ChevronsUpDown className='ml-2 size-4 shrink-0 opacity-50' />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className='max-w-xs'>
+      <PopoverContent className='w-full min-w-[200px] max-w-xs'>
         <Command>
-          <CommandEmpty>No Props</CommandEmpty>
+          {graphics.length === 0 && <CommandGroup heading='no graphic instances on this card' />}
+          <CommandEmpty>No Graphics Found</CommandEmpty>
           <CommandGroup>
             {graphics.map((graphic, index) => (
               <GraphicInstCommandItem
@@ -149,21 +151,23 @@ function GraphicInstCommandItem({
         setValue()
       }}
     >
-      <div className='flex w-full items-center justify-between gap-2 text-xs'>
-        <span className='font-mono text-[10px]'>{index}</span>
-        <div className='size-8'>
-          <GraphicPreview graphic_id={graphic.graphic_id} />
+      <div>
+        <div className='flex w-full items-center justify-between gap-2 text-xs'>
+          <span className='font-mono text-[10px]'>{index}</span>
+          <div className='size-8'>
+            <GraphicPreview graphic_id={graphic.graphic_id} />
+          </div>
+          <div className='flex w-full items-center justify-between'>
+            {graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}
+            {!graphic.enabled && (
+              <div>
+                <EyeNoneIcon />
+              </div>
+            )}
+          </div>
+          <Check className={cn('mr-2 h-4 w-4', value === graphic.inst_id ? 'opacity-100' : 'opacity-0')} />
         </div>
-        <div className='flex w-full items-center justify-between'>
-          {graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}
-          <span className='text-[0.5rem] text-primary'>{graphic.label}</span>
-          {!graphic.enabled && (
-            <div>
-              <EyeNoneIcon />
-            </div>
-          )}
-        </div>
-        <Check className={cn('mr-2 h-4 w-4', value === graphic.inst_id ? 'opacity-100' : 'opacity-0')} />
+        <div className='text-[0.5rem] text-primary'>{graphic.label}</div>
       </div>
     </CommandItem>
   )
@@ -325,7 +329,6 @@ function GraphicDefCombobox({ value, setValue }: { value: string; setValue: (val
         >
           {graphicDef.image.image_id ? (
             <div className='flex items-center justify-start gap-2'>
-              <Check className={'mr-2 size-4 opacity-100'} />
               <div className='flex'>
                 <ImagePreview image={graphicDef.image} />
                 <ImagePreview image={graphicDef.bumpMap} />
@@ -334,16 +337,16 @@ function GraphicDefCombobox({ value, setValue }: { value: string; setValue: (val
               {graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}
             </div>
           ) : (
-            <span className='text-xs italic text-gray-500/70'>Select Definition</span>
+            <span className='text-xs italic text-gray-500/70'>Select Graphic</span>
           )}
           <ChevronsUpDown className='ml-2 size-4 shrink-0 opacity-50' />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className='w-full max-w-xs p-0'>
+      <PopoverContent className='w-full min-w-[200px] max-w-xs'>
         <Command>
           {graphicDefIds.length > 3 && <CommandInput placeholder='Search Graphics...' />}
-          {graphicDefIds.length < 1 && <CommandInput placeholder='No graphics' />}
-          <CommandEmpty>No Graphics.</CommandEmpty>
+          {graphicDefIds.length === 0 && <CommandGroup heading='no graphics to choose from' />}
+          {graphicDefIds.length > 0 && <CommandEmpty>No Graphics Match Search</CommandEmpty>}
           <CommandGroup>
             {graphicDefIds.map((defId) => (
               <GraphicDefCommandItem
@@ -409,11 +412,6 @@ function GraphicPreview({ graphic_id, showAll }: { graphic_id: string; showAll?:
       )}
     </div>
   )
-}
-
-function ImagePreview({ image }: { image?: ImageDefinitionIdType }) {
-  const imageDef = useImageDefUrl(image || { image_id: '' })
-  return <img src={imageDef.url} alt='.' className='max-h-8 w-full object-contain pr-0.5' />
 }
 
 function EditGfxPosition({ position, setPosition }: { position: Vec3; setPosition: (p: Vec3) => void }) {

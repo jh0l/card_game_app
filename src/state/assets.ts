@@ -218,7 +218,7 @@ export const imageDefinitionURLSelector = selectorFamily<ImageDefinitionUrl, str
     },
 })
 export const useImageDefUrl = (id: { image_id: string }) => useRecoilValue(imageDefinitionURLSelector(id.image_id))
-
+export const useImageDefUrl2 = (id: string) => useRecoilValue(imageDefinitionURLSelector(id))
 export const graphicDefinitionImageDefinitionUrlSelector = selectorFamily<ImageDefinitionUrl, string>({
   key: 'graphic_definition_image_definition_url_selector',
   get:

@@ -9,6 +9,7 @@ import { cn } from '@/src/lib/utils'
 import {
   GraphicDefinitionType,
   GraphicInstanceType,
+  ImageDefinitionIdType,
   randomId,
   selectedGraphicDefIdState,
   useGraphicDefinition,
@@ -18,6 +19,9 @@ import {
   useGraphicDefinitionReset,
   useGraphicDefinitionSet,
   useImageDefUrl,
+  useImageDefUrl2,
+  useImageDefinition,
+  useImageDefinitionIds,
 } from '@/src/state/assets'
 import { IndexedDBEffect } from '@/src/state/effects'
 import { Check, ChevronsUpDown, Focus } from 'lucide-react'
@@ -73,10 +77,13 @@ export default function GraphicsContent() {
       }
     }
   }
+  const handleNewGraphicDefinition = () => {
+    alert('not implemented yet :)')
+  }
   return (
     <>
       <div className='px-1 pt-1'>
-        <Button size='sm' className='w-full'>
+        <Button size='sm' className='w-full' onClick={handleNewGraphicDefinition}>
           New Graphic Definition
         </Button>
       </div>
@@ -159,14 +166,38 @@ function GraphicInstancePreview({ graphic }: { graphic: GraphicDefinitionType })
   )
 }
 
+const selectedGraphicEditorTabState = atom<string>({
+  key: 'selectedGraphicEditorTab',
+  default: 'image',
+  effects: [IndexedDBEffect('selectedGraphicEditorTab', '')],
+})
+
+type TextureMapType = 'image' | 'bump' | 'irid'
+
 function GraphicEditor({ handleFocus }: { handleFocus: (gfxDefId: string) => void }) {
   const [clonedId, setClonedId] = useState(() => randomId())
   const setClone = useGraphicDefinitionSet(clonedId)
 
   const setIds = useGraphicDefinitionIdsListSet()
   const [selectedGfxDefId, setSelected] = useRecoilState(selectedGraphicDefIdState)
-  const [gfxDef] = useGraphicDefinition(selectedGfxDefId)
+  const [gfxDef, setGfxDef] = useGraphicDefinition(selectedGfxDefId)
   const reset = useGraphicDefinitionReset(selectedGfxDefId)
+  const [tabValue, setTabValue] = useRecoilState(selectedGraphicEditorTabState)
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setGfxDef((prev) => ({ ...prev, name: e.target.value }))
+  }
+  const setGraphicMap = (value: string, type: TextureMapType) => {
+    setGfxDef((prev) => {
+      switch (type) {
+        case 'image':
+          return { ...prev, image: { image_id: value } }
+        case 'bump':
+          return { ...prev, bumpMap: { image_id: value } }
+        case 'irid':
+          return { ...prev, iridescentMap: { image_id: value } }
+      }
+    })
+  }
   const handleClone = () => {
     const deepClone = JSON.parse(JSON.stringify(gfxDef)) as GraphicDefinitionType
     setClone({ ...deepClone })
@@ -184,7 +215,7 @@ function GraphicEditor({ handleFocus }: { handleFocus: (gfxDefId: string) => voi
   return (
     <div className='relative h-full px-2' key={selectedGfxDefId}>
       <div className='flex w-full items-center justify-between gap-2 py-2'>
-        <Label size='2xs'>Graphic Definition</Label>
+        <Label size='xs'>Graphic Definition</Label>
         <div className='flex gap-2'>
           <Button size='xs' variant='secondary' onClick={handleClone}>
             Clone
@@ -194,15 +225,102 @@ function GraphicEditor({ handleFocus }: { handleFocus: (gfxDefId: string) => voi
           </Button>
         </div>
       </div>
-      <div className='w-full select-text text-center font-mono text-[10px] opacity-40'>{selectedGfxDefId}</div>
+      <Label size='2xs' className='flex'>
+        <span className='w-full'>Definition Name</span>
+        <div className='w-full select-text text-center font-mono text-[10px] opacity-40'>{selectedGfxDefId}</div>
+      </Label>
       <div className='flex w-full items-center justify-between pb-0.5 text-xs'>
-        <Input id='card_name' defaultValue={gfxDef.name} className='h-9' />
+        <Input id='card_name' defaultValue={gfxDef.name} onChange={handleNameChange} className='h-9' />
         <div className='flex items-center justify-center pl-2'>
           <Button size='icon' variant='outline' className='scale-75' onClick={() => handleFocus(selectedGfxDefId)}>
             <Focus />
           </Button>
         </div>
       </div>
+      <Tabs
+        defaultValue='image'
+        className='w-full max-w-xs'
+        key={selectedGfxDefId}
+        value={tabValue}
+        onValueChange={setTabValue}
+      >
+        <TabsList className='grid w-full grid-cols-3' selected>
+          <TabsTrigger value='image'>Image</TabsTrigger>
+          <TabsTrigger value='bump'>Bump</TabsTrigger>
+          <TabsTrigger value='irid'>Irid.</TabsTrigger>
+        </TabsList>
+        <TabsContent value='image' className='h-full'>
+          <GraphicImageEditor type='image' setValue={setGraphicMap} value={gfxDef.image.image_id} />
+        </TabsContent>
+        <TabsContent value='bump' className='h-full'>
+          hello
+        </TabsContent>
+        <TabsContent value='irid' className='h-full'>
+          hello
+        </TabsContent>
+      </Tabs>
     </div>
   )
+}
+
+function GraphicImageEditor({
+  value,
+  setValue,
+  type,
+}: {
+  value: string
+  setValue: (value: string, type: TextureMapType) => void
+  type: TextureMapType
+}) {
+  return (
+    <div className='flex flex-col gap-2'>
+      <ImageDefComboBox imageDefId={value} setValue={(s) => setValue(s, type)} />
+    </div>
+  )
+}
+
+function ImageDefComboBox({ imageDefId, setValue }: { imageDefId: string; setValue: (value: string) => void }) {
+  const [imageDef] = useImageDefinition(imageDefId)
+  const [open, setOpen] = useState(false)
+  const [imageDefIds] = useImageDefinitionIds()
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          id='image_definition'
+          variant='outline'
+          role='combobox'
+          aria-expanded={open}
+          className='w-full justify-between'
+          size='sm'
+        >
+          {imageDefId ? (
+            <div className='flex items-center justify-start gap-2'>
+              <div className='flex'>
+                <ImagePreview image={imageDefId} />
+              </div>
+              {imageDef.name || <span className='italic text-red-500/70'>Image has no name</span>}
+            </div>
+          ) : (
+            <span className='text-xs italic text-gray-500/70'>Select Image</span>
+          )}
+          <ChevronsUpDown className='ml-2 size-4 shrink-0 opacity-50' />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className='w-full min-w-[200px] max-w-xs p-0'>
+        <Command>
+          {imageDefIds.length === 0 && <CommandGroup heading='No Images to choose from  ' />}
+          {imageDefIds.length > 3 && <CommandInput placeholder='Search Images...' />}
+          {imageDefIds.length === 0 && <CommandEmpty />}
+          <CommandEmpty>No Images Found</CommandEmpty>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+export function ImagePreview({ image }: { image?: ImageDefinitionIdType | string }) {
+  const id = image ? (typeof image === 'string' ? image : image.image_id) : ''
+  const imageDef = useImageDefUrl2(id)
+  return <img src={imageDef.url} alt='.' className='max-h-8 w-full object-contain pr-0.5' />
 }
