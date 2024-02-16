@@ -290,7 +290,6 @@ function ImageDefCombobox({
   const [open, setOpen] = React.useState(false)
   const imageDefIds = useImageDefinitionIdsList()
   const imageDefValue = useImageDefUrl({ image_id: value?.image_id || '' })
-  if (imageDefIds.length < 1) return null
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>

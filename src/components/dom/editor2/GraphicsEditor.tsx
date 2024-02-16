@@ -291,24 +291,12 @@ function GraphicImageEditor({
   const [imageDefIds] = useImageDefinitionIds()
   return (
     <div className='flex flex-col gap-2'>
-      {imageDefIds.length > 0 && (
-        <div className='flex w-full gap-2'>
-          <ImageDefComboBox imageDefId={value} setValue={(s) => setValue(s, type)} />
-          <Button variant='outline' size='sm'>
-            New
-          </Button>
-        </div>
-      )}
-      {!value && imageDefIds.length === 0 && (
-        <>
-          <div className='flex h-16 items-center justify-center text-xs italic text-gray-500/70'>Import an image</div>
-          <ImageHandler image={{ image_id: value }} setImage={(x) => setValue(x.image_id, type)} />
-          {/* if bump or iridescence map is missing, show button below */}
-          Also apply to
-          <Checkbox />
-          <Checkbox />
-        </>
-      )}
+      <div className='flex h-16 items-center justify-center text-xs italic text-gray-500/70'>Import an image</div>
+      <ImageHandler image={{ image_id: value }} setImage={(x) => setValue(x.image_id, type)} />
+      {/* if bump or iridescence map is missing, show button below */}
+      Also apply to
+      <Checkbox />
+      <Checkbox />
     </div>
   )
 }
