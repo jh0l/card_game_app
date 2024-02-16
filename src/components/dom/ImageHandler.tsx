@@ -35,7 +35,7 @@ export function ImageHandler({
   const [newName, setNewName] = React.useState('')
   const [newType, setNewType] = React.useState<'url' | 'db'>('db')
   const [newImageObj, setNewImageObj] = React.useState<{ src: string; file?: File } | null>(null)
-  const [, setimageDefIds] = useImageDefinitionIds()
+  const [imageDefIds, setimageDefIds] = useImageDefinitionIds()
   const setNewImage = useImageDefinitionSet(newId || '')
   const newImage = React.useMemo(() => {
     if (!newImageObj) return null
@@ -83,6 +83,11 @@ export function ImageHandler({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewImageObj((e.target.files && e.target.files[0] && { src: '', file: e.target.files[0] }) || null)
   }
+  React.useEffect(() => {
+    if (imageDefIds.length < 1) {
+      setNewId(randomId())
+    }
+  }, [imageDefIds])
   const [urlInput, setUrlInput] = React.useState('')
   return (
     <div className='flex flex-col gap-2'>
@@ -95,7 +100,7 @@ export function ImageHandler({
           variant={newId ? 'destructive' : 'outline'}
           onClick={() => setNewId((x) => (!x ? randomId() : false))}
         >
-          {newId ? 'cancel' : '+'}
+          {newId ? 'cancel' : 'new'}
         </Button>
       </div>
       <div
@@ -285,6 +290,7 @@ function ImageDefCombobox({
   const [open, setOpen] = React.useState(false)
   const imageDefIds = useImageDefinitionIdsList()
   const imageDefValue = useImageDefUrl({ image_id: value?.image_id || '' })
+  if (imageDefIds.length < 1) return null
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -311,11 +317,11 @@ function ImageDefCombobox({
           <ChevronsUpDown className='ml-2 size-4 shrink-0 opacity-50' />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className='w-full max-w-xs p-0'>
+      <PopoverContent className='w-full min-w-[200px] max-w-xs'>
         <Command>
           {imageDefIds.length > 3 && <CommandInput placeholder='Search Images...' />}
-          {imageDefIds.length < 1 && <CommandInput placeholder='No images' />}
-          <CommandEmpty>No Images.</CommandEmpty>
+          {imageDefIds.length === 0 && <CommandGroup heading='No Images to choose from  ' />}
+          {imageDefIds.length > 1 && <CommandEmpty>No Images Found</CommandEmpty>}
           <CommandGroup>
             {imageDefIds.map((defId) => (
               <ImageDefCommandItem

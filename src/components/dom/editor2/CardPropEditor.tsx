@@ -66,7 +66,7 @@ function EditCardTypePopover({ cardDefId }: { cardDefId: string }) {
           <Menu />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className='max-w-xs'>
+      <PopoverContent className='w-full min-w-[200px] max-w-xs'>
         <div className='text-xs'>Change Card Type</div>
         <CardTypeComboBox cardDefId={cardDefId} />
       </PopoverContent>
@@ -181,7 +181,7 @@ function CardTypeComboBox({ cardDefId }: { cardDefId: string }) {
           <ChevronsUpDown className='ml-2 size-4 shrink-0 opacity-50' />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className='max-w-xs'>
+      <PopoverContent className='w-full min-w-[200px] max-w-xs'>
         <Command>
           {cardTypes.length > 6 && <CommandInput placeholder='Search Types...' />}
           <CommandEmpty>No Types Match Criteria.</CommandEmpty>
@@ -239,7 +239,7 @@ function SelectCardPropComboBox({ cardDefId }: { cardDefId: string }) {
           <ChevronsUpDown className='ml-2 size-4 shrink-0 opacity-50' />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className='max-w-xs'>
+      <PopoverContent className='w-full min-w-[200px] max-w-xs'>
         <Command>
           <CommandGroup heading='properties'>
             {Object.values(cardDef.props).map(({ prop_id, enabled }) => (

@@ -99,11 +99,11 @@ function CardDefComboBox({ value, setValue }: { value?: string; setValue: (value
           <ChevronsUpDown className='ml-2 size-4 shrink-0 opacity-50' />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className='w-full max-w-xs p-0'>
+      <PopoverContent className='w-full min-w-[200px] max-w-xs'>
         <Command>
           {cardDefIds.length > 3 && <CommandInput placeholder='Search Cards...' />}
           {cardDefIds.length === 0 && <CommandGroup heading='No Card Definitions' />}
-          <CommandEmpty>No Cards.</CommandEmpty>
+          {cardDefIds.length > 0 && <CommandEmpty> No Cards.</CommandEmpty>}
           <CommandGroup>
             {cardDefIds.map((defId) => (
               <Suspense key={defId} fallback={<Spinner />}>
@@ -255,7 +255,7 @@ export function CardsContent() {
 function CardGraphicPreview({ graphics }: { graphics: GraphicInstanceType[] }) {
   return (
     <div className='flex max-w-24'>
-      {graphics.map((graphic, i) => (
+      {graphics.map((graphic) => (
         <div key={graphic.inst_id}>
           <Suspense fallback={<Spinner />}>
             <GraphicInstancePreview graphic={graphic} />
@@ -339,6 +339,7 @@ function CardEditor({ handleFocus }: { handleFocus: (cardDefId: string) => void 
       setSelected('')
     }
   }
+  if (!cardDef || cardDef.id === '' || !selectedCardDefId) return null
   return (
     <div className='relative h-full px-2' key={selectedCardDefId}>
       <div className='flex w-full items-center justify-between gap-2 py-2'>

@@ -26,12 +26,14 @@ import {
 import { IndexedDBEffect } from '@/src/state/effects'
 import { Check, ChevronsUpDown, Focus } from 'lucide-react'
 import { MouseEventHandler, Suspense, useState, useRef, useTransition } from 'react'
-import { atom, useRecoilState, useRecoilState_TRANSITION_SUPPORT_UNSTABLE } from 'recoil'
+import { atom, useRecoilState, useRecoilState_TRANSITION_SUPPORT_UNSTABLE, useSetRecoilState } from 'recoil'
 import { TargetIcon } from '@radix-ui/react-icons'
 import { Input } from '@/src/components/ui/input'
 import { Label } from '@/src/components/ui/label'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/src/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/src/components/ui/popover'
+import { ImageHandler } from '../ImageHandler'
+import { Checkbox } from '../../ui/checkbox'
 
 const ResizablePanelSizes = atom<number[]>({
   key: 'gfxEditorresizablePanelSizes',
@@ -42,7 +44,7 @@ const ResizablePanelSizes = atom<number[]>({
 export default function GraphicsContent() {
   const [, startTransition] = useTransition()
   const [sizes, setSizes] = useRecoilState_TRANSITION_SUPPORT_UNSTABLE(ResizablePanelSizes)
-  const [gfxDefIds] = useGraphicDefinitionIds()
+  const [gfxDefIds, setGfxDefIds] = useGraphicDefinitionIds()
   const listRef = useRef<HTMLDivElement>(null)
   const handleFocus = (gfxDefId: string) => {
     const index = gfxDefIds.findIndex((id) => id === gfxDefId)
@@ -77,8 +79,21 @@ export default function GraphicsContent() {
       }
     }
   }
+  const setSelectedGfxDefId = useSetRecoilState(selectedGraphicDefIdState)
+  const [newGfxDefId, setNewGfxDefId] = useState(() => randomId())
+  const setNewGfxDef = useGraphicDefinitionSet(newGfxDefId)
   const handleNewGraphicDefinition = () => {
-    alert('not implemented yet :)')
+    setNewGfxDef({
+      name: '',
+      image: { image_id: '' },
+      bumpMap: { image_id: '' },
+      iridescentMap: { image_id: '' },
+      width: 0,
+      height: 0,
+    })
+    setGfxDefIds((prev) => [...prev, newGfxDefId])
+    setSelectedGfxDefId(newGfxDefId)
+    setNewGfxDefId(randomId())
   }
   return (
     <>
@@ -159,9 +174,9 @@ function GraphicInstancePreview({ graphic }: { graphic: GraphicDefinitionType })
   const iridMapDef = useImageDefUrl(graphic.iridescentMap)
   return (
     <div className='flex'>
-      <img src={imageDef.url} alt='.' className='h-8 object-contain pr-0.5' />
-      <img src={bumpMapDef.url} alt='.' className='h-8 object-contain pr-0.5' />
-      <img src={iridMapDef.url} alt='.' className='h-8 object-contain pr-0.5' />
+      <img src={imageDef.url} alt=' ' className='h-8 object-contain pr-0.5' />
+      <img src={bumpMapDef.url} alt=' ' className='h-8 object-contain pr-0.5' />
+      <img src={iridMapDef.url} alt=' ' className='h-8 object-contain pr-0.5' />
     </div>
   )
 }
@@ -212,6 +227,7 @@ function GraphicEditor({ handleFocus }: { handleFocus: (gfxDefId: string) => voi
       setSelected('')
     }
   }
+  if (!gfxDef || !selectedGfxDefId) return null
   return (
     <div className='relative h-full px-2' key={selectedGfxDefId}>
       <div className='flex w-full items-center justify-between gap-2 py-2'>
@@ -253,10 +269,10 @@ function GraphicEditor({ handleFocus }: { handleFocus: (gfxDefId: string) => voi
           <GraphicImageEditor type='image' setValue={setGraphicMap} value={gfxDef.image.image_id} />
         </TabsContent>
         <TabsContent value='bump' className='h-full'>
-          hello
+          <GraphicImageEditor type='bump' setValue={setGraphicMap} value={gfxDef.bumpMap.image_id} />
         </TabsContent>
         <TabsContent value='irid' className='h-full'>
-          hello
+          <GraphicImageEditor type='irid' setValue={setGraphicMap} value={gfxDef.iridescentMap.image_id} />
         </TabsContent>
       </Tabs>
     </div>
@@ -272,9 +288,27 @@ function GraphicImageEditor({
   setValue: (value: string, type: TextureMapType) => void
   type: TextureMapType
 }) {
+  const [imageDefIds] = useImageDefinitionIds()
   return (
     <div className='flex flex-col gap-2'>
-      <ImageDefComboBox imageDefId={value} setValue={(s) => setValue(s, type)} />
+      {imageDefIds.length > 0 && (
+        <div className='flex w-full gap-2'>
+          <ImageDefComboBox imageDefId={value} setValue={(s) => setValue(s, type)} />
+          <Button variant='outline' size='sm'>
+            New
+          </Button>
+        </div>
+      )}
+      {!value && imageDefIds.length === 0 && (
+        <>
+          <div className='flex h-16 items-center justify-center text-xs italic text-gray-500/70'>Import an image</div>
+          <ImageHandler image={{ image_id: value }} setImage={(x) => setValue(x.image_id, type)} />
+          {/* if bump or iridescence map is missing, show button below */}
+          Also apply to
+          <Checkbox />
+          <Checkbox />
+        </>
+      )}
     </div>
   )
 }
@@ -311,8 +345,7 @@ function ImageDefComboBox({ imageDefId, setValue }: { imageDefId: string; setVal
         <Command>
           {imageDefIds.length === 0 && <CommandGroup heading='No Images to choose from  ' />}
           {imageDefIds.length > 3 && <CommandInput placeholder='Search Images...' />}
-          {imageDefIds.length === 0 && <CommandEmpty />}
-          <CommandEmpty>No Images Found</CommandEmpty>
+          {imageDefIds.length > 1 && <CommandEmpty>No Images Found</CommandEmpty>}
         </Command>
       </PopoverContent>
     </Popover>
@@ -322,5 +355,5 @@ function ImageDefComboBox({ imageDefId, setValue }: { imageDefId: string; setVal
 export function ImagePreview({ image }: { image?: ImageDefinitionIdType | string }) {
   const id = image ? (typeof image === 'string' ? image : image.image_id) : ''
   const imageDef = useImageDefUrl2(id)
-  return <img src={imageDef.url} alt='.' className='max-h-8 w-full object-contain pr-0.5' />
+  return <img src={imageDef.url} alt=' ' className='h-8 object-contain pr-0.5' />
 }
