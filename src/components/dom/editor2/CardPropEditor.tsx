@@ -224,7 +224,7 @@ function SelectCardPropComboBox({ cardDefId }: { cardDefId: string }) {
           aria-haspopup='listbox'
           className='w-full justify-between'
         >
-          {selected ? (
+          {selected && cardDef.props[selected] ? (
             <div className='flex w-1/2 items-center justify-start gap-6'>
               {cardDef.props[selected].prop_id}
               {!cardDef.props[selected].enabled && (
@@ -276,7 +276,7 @@ function EditCardProp({ cardDefId }: { cardDefId: string }) {
   const [, startTransition] = useTransition()
   const [cardDef, setCardDef] = useCardDefinition(cardDefId)
   const [selected] = useRecoilState(selectedPropIdState)
-  if (selected === undefined || cardDef.props === undefined) return null
+  if (selected === undefined || cardDef.props === undefined || cardDef.props[selected] === undefined) return null
   const prop = cardDef.props[selected]
   const inputType = CARD_ATTRIBUTE_VALUE_TYPES[prop.prop_id]
   const handleEnableProp: MouseEventHandler<HTMLButtonElement> = () => {
@@ -361,7 +361,7 @@ function EditPropPosition({ prop, cardDefId }: { prop: PropInstanceType; cardDef
         </div>
         <div className='flex items-center gap-1'>
           <ExternalLinkIcon />
-          <Input id='2' type='number' step={0.05} defaultValue={prop.position[2]} onChange={handleUpdatePosition} />
+          <Input id='2' type='number' step={0.01} defaultValue={prop.position[2]} onChange={handleUpdatePosition} />
         </div>
       </div>
     </>

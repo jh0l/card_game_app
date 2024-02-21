@@ -17,6 +17,12 @@ module.exports = {
       fontFamily: {
         sans: ['var(--font-sans)', ...fontFamily.sans],
       },
+      backgroundImage: {
+        checkered: `url("data:image/svg+xml,%0A%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%23F0F0F0' d='M0 0h8v8H0zm8 8h8v8H8z'/%3E%3C/svg%3E")`,
+      },
+      backgroundSize: {
+        'size-md': '16px 16px',
+      },
       colors: {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
@@ -73,5 +79,5 @@ module.exports = {
       },
     },
   },
-  plugins: [require('tailwindcss-animate'), require('@tailwindcss/container-queries')],
+  plugins: [require('tailwindcss-animate'), require('@tailwindcss/container-queries'), require('tailwind-scrollbar')],
 }

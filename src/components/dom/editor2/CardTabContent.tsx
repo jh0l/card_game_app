@@ -21,7 +21,7 @@ import {
   useSetCardDefinition,
 } from '@/src/state/assets'
 import { IndexedDBEffect } from '@/src/state/effects'
-import { Check, ChevronsUpDown, Focus } from 'lucide-react'
+import { Check, ChevronsUpDown, Focus, Menu } from 'lucide-react'
 import { MouseEventHandler, Suspense, useState, useRef, useTransition } from 'react'
 import { atom, useRecoilState, useRecoilState_TRANSITION_SUPPORT_UNSTABLE, useSetRecoilState } from 'recoil'
 import { CardPropEditor } from './CardPropEditor'
@@ -39,7 +39,7 @@ export function HandContent() {
     setHandCardIds((prev) => [...prev, { def_id: id, inst_id: randomId() }])
   }
   return (
-    <div className='flex w-full flex-col gap-2 p-2'>
+    <div className='flex w-full flex-col gap-1 p-2'>
       <CardDefComboBox value={''} setValue={handleAddCard} />
 
       {handIds.map((id, i) => (
@@ -65,11 +65,14 @@ function CardHandInstance({ id, index }: { id: string; index: number }) {
     })
   }
   return (
-    <div className='flex items-center gap-2'>
+    <div className='flex max-w-xs items-center gap-1 overflow-hidden'>
       <CardDefComboBox value={id} setValue={changeIndexCardDef} />
-      <Button onClick={deleteCard} variant='outline' size='sm'>
-        &times;
+      <Button variant='outline' size='icon' className='scale-90'>
+        <Menu />
       </Button>
+      {/* <Button onClick={deleteCard} variant='outline' size='sm'>
+        &times;
+      </Button> */}
     </div>
   )
 }
@@ -84,14 +87,15 @@ function CardDefComboBox({ value, setValue }: { value?: string; setValue: (value
           variant='outline'
           role='combobox'
           aria-expanded={open}
-          className='relative w-full justify-between'
-          size='sm'
+          className='relative flex h-fit w-full justify-between'
         >
           {value ? (
-            <div className='flex w-1/2 items-center justify-start gap-6'>
+            <div className='flex w-full flex-wrap items-center justify-between gap-1'>
               {/* eslint-disable-next-line @next/next/no-img-element */}
+              <div className='max-w-48 overflow-x-auto overflow-y-hidden text-left text-xs'>
+                {cardDefValue.name || <span className='italic text-red-500/70'>card has no name</span>}
+              </div>
               <CardGraphicPreview graphics={cardDefValue.graphics} />
-              {cardDefValue.name || <span className='italic text-red-500/70'>card has no name</span>}
             </div>
           ) : (
             'Add Card...'
@@ -103,22 +107,24 @@ function CardDefComboBox({ value, setValue }: { value?: string; setValue: (value
         <Command>
           {cardDefIds.length > 3 && <CommandInput placeholder='Search Cards...' />}
           {cardDefIds.length === 0 && <CommandGroup heading='No Card Definitions' />}
-          {cardDefIds.length > 0 && <CommandEmpty> No Cards.</CommandEmpty>}
-          <CommandGroup>
-            {cardDefIds.map((defId) => (
-              <Suspense key={defId} fallback={<Spinner />}>
-                <CardDefCommandItem
-                  key={defId}
-                  id={defId}
-                  value={value || ''}
-                  setValue={(v) => {
-                    setValue(v)
-                    setOpen(false)
-                  }}
-                />
-              </Suspense>
-            ))}
-          </CommandGroup>
+          {cardDefIds.length > 0 && <CommandEmpty> No Cards Match Search</CommandEmpty>}
+          <ScrollArea className='max-h-96 overflow-y-scroll'>
+            <CommandGroup>
+              {cardDefIds.map((defId) => (
+                <Suspense key={defId} fallback={<Spinner />}>
+                  <CardDefCommandItem
+                    key={defId}
+                    id={defId}
+                    value={value || ''}
+                    setValue={(v) => {
+                      setValue(v)
+                      setOpen(false)
+                    }}
+                  />
+                </Suspense>
+              ))}
+            </CommandGroup>
+          </ScrollArea>
         </Command>
       </PopoverContent>
     </Popover>
@@ -128,16 +134,17 @@ function CardDefCommandItem({ id, setValue, value }: { id: string; setValue: (va
   const [cardDef] = useCardDefinition(id)
   return (
     <CommandItem
-      key={id}
-      value={id}
-      onSelect={(currentValue) => {
-        setValue(currentValue)
+      value={`${cardDef.name} ${cardDef.id}`}
+      onSelect={() => {
+        setValue(id)
       }}
     >
-      <div className='flex w-full justify-start gap-2'>
+      <div className='flex w-full items-center justify-between gap-2'>
         {/* eslint-disable-next-line @next/next/no-img-element */}
+        <div className='w-full overflow-x-auto overflow-y-hidden text-left text-xs'>
+          {cardDef.name || <span className='italic text-red-500/70'>card has no name</span>}
+        </div>
         <CardGraphicPreview graphics={cardDef.graphics} />
-        {cardDef.name || <span className='italic text-red-500/70'>card has no name</span>}
         <Check className={cn('mr-2 h-4 w-4', value === id ? 'opacity-100' : 'opacity-0')} />
       </div>
     </CommandItem>
@@ -208,7 +215,7 @@ export function CardsContent() {
   }
   return (
     <>
-      <div className='px-1 pt-1'>
+      <div className='w-[98%] px-1 pt-1'>
         <Button size='sm' className='w-full' onClick={handleNewCardDefinition}>
           New Card Definition
         </Button>
@@ -221,14 +228,9 @@ export function CardsContent() {
         className='max-w-xs rounded border bg-background/50'
         id='card_editor_panel_group'
       >
-        <ResizablePanel
-          defaultSize={sizes[0]}
-          key={sizes[0] + 'p1'}
-          className='shadow-inner shadow-black/10'
-          id='card_editor_panel_1'
-        >
+        <ResizablePanel defaultSize={sizes[0]} key={sizes[0] + 'p1'} id='card_editor_panel_1'>
           <ScrollArea className='size-full'>
-            <div className='flex h-full flex-wrap items-center justify-around gap-1 p-1' ref={listRef}>
+            <div className='flex h-full w-[98%] flex-wrap items-center justify-start gap-1 px-1 pt-1' ref={listRef}>
               {cardDefinitionIds.map((id, i) => (
                 <CardDefinitionListItem index={i} key={id} definitionId={id} />
               ))}
@@ -254,13 +256,11 @@ export function CardsContent() {
 }
 function CardGraphicPreview({ graphics }: { graphics: GraphicInstanceType[] }) {
   return (
-    <div className='flex max-w-24'>
+    <div className='flex max-w-24 items-center justify-center'>
       {graphics.map((graphic) => (
-        <div key={graphic.inst_id}>
-          <Suspense fallback={<Spinner />}>
-            <GraphicInstancePreview graphic={graphic} />
-          </Suspense>
-        </div>
+        <Suspense fallback={<Spinner />} key={graphic.inst_id}>
+          <GraphicInstancePreview graphic={graphic} />
+        </Suspense>
       ))}
     </div>
   )
@@ -268,32 +268,32 @@ function CardGraphicPreview({ graphics }: { graphics: GraphicInstanceType[] }) {
 function GraphicInstancePreview({ graphic }: { graphic: GraphicInstanceType }) {
   const [graphicDef] = useGraphicDefinition(graphic.graphic_id)
   const imageDef = useImageDefUrl(graphicDef.image)
-  return <img src={imageDef.url} alt='.' className='h-8 object-contain pr-0.5' />
+  return (
+    <img src={imageDef.url} alt='.' className='flex h-min max-h-8 items-center justify-center object-contain pr-0.5' />
+  )
 }
 
 function CardDefinitionListItem({ definitionId, index }: { definitionId: string; index: number }) {
   const [cardDefinition] = useCardDefinition(definitionId)
   const [selectedId, setSelectedCardDefId] = useRecoilState(selectedCardDefIdState)
   return (
-    <>
-      <Button
-        variant='secondary'
-        onClick={() => setSelectedCardDefId(definitionId)}
-        className={cn(
-          'relative flex h-11 w-full items-center justify-between gap-2 rounded bg-background/50 p-1 px-2',
-          {
-            'bg-primary/50 hover:bg-primary': selectedId === definitionId,
-          },
-        )}
-      >
-        <div className='flex items-center gap-2 font-mono text-xs'>
-          <div>{index}</div>
-          <CardGraphicPreview graphics={cardDefinition.graphics} />
-        </div>
-        <div className='text-sm'>{cardDefinition.name}</div>
-        <div className='absolute -top-0.5 right-1 font-mono text-[9px] opacity-40'>{cardDefinition.id}</div>
-      </Button>
-    </>
+    <Button
+      variant='secondary'
+      onClick={() => setSelectedCardDefId(definitionId)}
+      className={cn(
+        'relative flex h-11 w-full max-w-xs items-center justify-between gap-2 overflow-hidden rounded bg-background/50 p-1 px-1',
+        {
+          'bg-primary/50 hover:bg-primary/70': selectedId === definitionId,
+        },
+      )}
+    >
+      <div className='h-full font-mono text-xs opacity-60'>{index}</div>
+      <div className='w-full overflow-x-auto overflow-y-hidden text-left text-xs'>{cardDefinition.name}</div>
+      <div className='flex items-center justify-center'>
+        <CardGraphicPreview graphics={cardDefinition.graphics} />
+      </div>
+      <div className='absolute -top-0.5 right-1 font-mono text-[9px] opacity-40'>{cardDefinition.id}</div>
+    </Button>
   )
 }
 const selectedCardEditorTabState = atom<string>({
@@ -339,10 +339,10 @@ function CardEditor({ handleFocus }: { handleFocus: (cardDefId: string) => void 
       setSelected('')
     }
   }
-  if (!cardDef || cardDef.id === '' || !selectedCardDefId) return null
+  if (!selectedCardDefId) return null
   return (
-    <div className='relative h-full px-2' key={selectedCardDefId}>
-      <div className='flex w-full items-center justify-between gap-2 py-2'>
+    <div className='relative h-full max-w-xs' key={selectedCardDefId}>
+      <div className='flex w-full items-center justify-between gap-2 p-2'>
         <Label size='xs'>Card Definition</Label>
         <div className='flex gap-2'>
           <Button size='xs' variant='secondary' onClick={handleClone}>
@@ -354,11 +354,11 @@ function CardEditor({ handleFocus }: { handleFocus: (cardDefId: string) => void 
         </div>
       </div>
 
-      <Label size='2xs' className='flex'>
+      <Label size='2xs' className='flex px-2'>
         <div className='w-full'>Definition Name </div>
         <div className='w-full select-text text-center font-mono text-[10px] opacity-40'>{selectedCardDefId}</div>
       </Label>
-      <div className='flex w-full items-center justify-between pb-0.5 text-xs'>
+      <div className='flex w-full items-center justify-between px-1 pb-0.5 text-xs'>
         <Input id='card_name' defaultValue={cardDef.name} onChange={handleNameChange} className='h-9' />
         <div className='flex items-center justify-center pl-2'>
           <Button

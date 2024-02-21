@@ -5,7 +5,7 @@
 @layer base {
   * {
     box-sizing: border-box;
-    @apply border-border;
+    @apply scrollbar-thin scrollbar-thumb-primary scrollbar-track-transparent border-border;
   }
 
   html,

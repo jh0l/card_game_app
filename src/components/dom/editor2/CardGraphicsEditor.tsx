@@ -15,7 +15,7 @@ import { IndexedDBEffect } from '@/src/state/effects'
 import { atom, useRecoilState } from 'recoil'
 import { useState, useTransition } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/src/components/ui/popover'
-import { Check, ChevronsUpDown, ExternalLinkIcon } from 'lucide-react'
+import { Check, ChevronsUpDown, ExternalLinkIcon, Menu } from 'lucide-react'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/src/components/ui/command'
 import { cn } from '@/src/lib/utils'
 import {
@@ -32,6 +32,7 @@ import { Label } from '../../ui/label'
 import { Vec3 } from '@/src/lib/types'
 import { Checkbox } from '../../ui/checkbox'
 import { ImagePreview } from './GraphicsEditor'
+import { ScrollArea } from '@radix-ui/react-scroll-area'
 
 const selectedGraphicInstIdState = atom<string>({
   key: 'selectedGraphicInstId',
@@ -42,6 +43,8 @@ const selectedGraphicInstIdState = atom<string>({
 export default function CardGraphicsEditor({ cardDefId }: { cardDefId: string }) {
   const [cardDef, setCardDef] = useCardDefinition(cardDefId)
   const [selectedInstId, setSelectedInstId] = useRecoilState(selectedGraphicInstIdState)
+  const [open, setOpen] = useState(false)
+
   const handleNewGraphicInst = () => {
     const newId = randomId()
     setCardDef((x) => {
@@ -58,19 +61,42 @@ export default function CardGraphicsEditor({ cardDefId }: { cardDefId: string })
       return { ...x, graphics: [...x.graphics, newInst] }
     })
     setSelectedInstId(newId)
+    setOpen(false)
+  }
+  const handleEnableAll = () => {
+    setCardDef((x) => {
+      const newX = { ...x }
+      newX.graphics = x.graphics.map((g) => ({ ...g, enabled: true }))
+      return newX
+    })
+    setOpen(false)
   }
   return (
-    <div className='flex flex-col gap-2'>
-      <div className='flex w-full gap-2 pt-1'>
+    <div className='flex max-w-xs flex-col gap-2 p-2 pr-3'>
+      <Label size='2xs'>Graphic Instance</Label>
+      <div className='flex w-full items-center justify-center gap-2 pt-1'>
         <SelectCardGraphicInstComboBox graphics={cardDef.graphics} />
-        <Button size='sm' variant='outline' className='h-11' onClick={handleNewGraphicInst}>
-          <PlusIcon />
-        </Button>
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button variant='outline' role='dialog' size='icon'>
+              <Menu />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className='flex w-full min-w-[200px] max-w-xs flex-col'>
+            <Button variant='outline' className='text-xs' onClick={handleNewGraphicInst}>
+              New Graphic Instance
+            </Button>
+            <Button variant='outline' className='text-xs' onClick={handleEnableAll}>
+              Enable All Graphics
+            </Button>
+          </PopoverContent>
+        </Popover>
       </div>
       <EditCardGraphic cardDefId={cardDefId} key={selectedInstId} />
     </div>
   )
 }
+
 function SelectCardGraphicInstComboBox({ graphics }: { graphics: GraphicInstanceType[] }) {
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useRecoilState(selectedGraphicInstIdState)
@@ -85,23 +111,34 @@ function SelectCardGraphicInstComboBox({ graphics }: { graphics: GraphicInstance
       <PopoverTrigger asChild>
         <Button
           variant='outline'
-          size='sm'
           role='combobox'
           aria-expanded={open}
           aria-haspopup='listbox'
-          className='h-11 w-full justify-between'
+          className='relative h-fit w-5/6 justify-between'
         >
-          {selectedGfx && selectedGfx.graphic_id ? (
-            <div className='flex w-full items-center justify-start gap-2 text-xs'>
-              <span className='font-mono text-[10px]'>{selectedIndex}</span>
-              <GraphicPreview graphic_id={selectedGfx.graphic_id} />
-              <span>{graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}</span>
+          {selectedGfx && selectedGfx.inst_id ? (
+            <div className='flex w-full flex-wrap items-center justify-start gap-1 overflow-hidden'>
+              <div className='flex w-fit items-center justify-start gap-2 text-xs'>
+                <span className='absolute left-1 top-1 font-mono text-[10px]'>{selectedIndex}</span>
+                {selectedGfx.graphic_id ? (
+                  <>
+                    <GraphicPreview graphic_id={selectedGfx.graphic_id} />
+                    <span>
+                      {graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className='italic text-gray-500'>No Definition Selected</span>
+                  </>
+                )}
+                {!selectedGfx.enabled && (
+                  <div>
+                    <EyeNoneIcon />
+                  </div>
+                )}
+              </div>
               <span className='text-[0.5rem] text-primary'>{selectedGfx.label}</span>
-              {!selectedGfx.enabled && (
-                <div>
-                  <EyeNoneIcon />
-                </div>
-              )}
             </div>
           ) : (
             <span className='text-xs italic text-gray-500/70'>Select Graphic Instance</span>
@@ -151,24 +188,24 @@ function GraphicInstCommandItem({
         setValue()
       }}
     >
-      <div>
-        <div className='flex w-full items-center justify-between gap-2 text-xs'>
-          <span className='font-mono text-[10px]'>{index}</span>
-          <div className='size-8'>
-            <GraphicPreview graphic_id={graphic.graphic_id} />
-          </div>
-          <div className='flex w-full items-center justify-between'>
+      <div className='flex w-full items-center justify-between gap-2 text-xs'>
+        <span className='font-mono text-[10px]'>{index}</span>
+        <div className='flex w-full items-center justify-between'>
+          <div className='w-full'>
             {graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}
-            {!graphic.enabled && (
-              <div>
-                <EyeNoneIcon />
-              </div>
-            )}
           </div>
-          <Check className={cn('mr-2 h-4 w-4', value === graphic.inst_id ? 'opacity-100' : 'opacity-0')} />
         </div>
-        <div className='text-[0.5rem] text-primary'>{graphic.label}</div>
+        <div className='size-8'>
+          <GraphicPreview graphic_id={graphic.graphic_id} />
+        </div>
+        {!graphic.enabled && (
+          <div>
+            <EyeNoneIcon />
+          </div>
+        )}
+        <Check className={cn('mr-2 h-4 w-4', value === graphic.inst_id ? 'opacity-100' : 'opacity-0')} />
       </div>
+      <div className='text-[0.5rem] text-primary'>{graphic.label}</div>
     </CommandItem>
   )
 }
@@ -267,14 +304,14 @@ function EditCardGraphic({ cardDefId }: { cardDefId: string }) {
         <Checkbox checked={selectedGfx.enabled} onClick={handleEnabled} />
         <div onClick={handleEnabled}>
           <span className='w-full cursor-pointer text-xs opacity-50'>
-            Graphic {selectedGfx.enabled ? 'Enabled' : 'Disabled'}
+            Graphic Instance {selectedGfx.enabled ? 'Enabled' : 'Disabled'}
           </span>
         </div>
       </div>
-      <Label size='2xs'>Label</Label>
+      <Label size='2xs'>Instance Label</Label>
       <Input defaultValue={selectedGfx.label} onChange={handleLabel} />
       <Label size='2xs' htmlFor='graphic_definition'>
-        Graphic Definition
+        Instance Graphic Definition
       </Label>
       <GraphicDefCombobox value={selectedGfx.graphic_id} setValue={(r) => handleChange('graphic_id', r)} />
       <div className='w-full select-text text-center font-mono text-[0.6rem] opacity-50'>{selectedGfx.graphic_id}</div>
@@ -324,20 +361,21 @@ function GraphicDefCombobox({ value, setValue }: { value: string; setValue: (val
           variant='outline'
           role='combobox'
           aria-expanded={open}
-          className='w-full justify-between'
-          size='sm'
+          className='relative flex h-fit w-full justify-between'
         >
-          {graphicDef.image.image_id ? (
-            <div className='flex items-center justify-start gap-2'>
+          {graphicDef.image.image_id || graphicDef.name ? (
+            <div className='flex w-full flex-wrap items-center justify-between gap-1'>
+              <div className='max-w-48 overflow-x-auto overflow-y-hidden text-left text-xs'>
+                {graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}
+              </div>
               <div className='flex'>
                 <ImagePreview image={graphicDef.image} />
                 <ImagePreview image={graphicDef.bumpMap} />
                 <ImagePreview image={graphicDef.iridescentMap} />
               </div>
-              {graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}
             </div>
           ) : (
-            <span className='text-xs italic text-gray-500/70'>Select Graphic</span>
+            <span className='text-xs italic text-gray-500/70'>Select Definition</span>
           )}
           <ChevronsUpDown className='ml-2 size-4 shrink-0 opacity-50' />
         </Button>
@@ -347,19 +385,21 @@ function GraphicDefCombobox({ value, setValue }: { value: string; setValue: (val
           {graphicDefIds.length > 3 && <CommandInput placeholder='Search Graphics...' />}
           {graphicDefIds.length === 0 && <CommandGroup heading='no graphics to choose from' />}
           {graphicDefIds.length > 0 && <CommandEmpty>No Graphics Match Search</CommandEmpty>}
-          <CommandGroup>
-            {graphicDefIds.map((defId) => (
-              <GraphicDefCommandItem
-                key={defId}
-                graphic_id={defId}
-                value={value}
-                setValue={() => {
-                  setValue(defId)
-                  setOpen(false)
-                }}
-              />
-            ))}
-          </CommandGroup>
+          <ScrollArea className='max-h-96 overflow-y-scroll'>
+            <CommandGroup>
+              {graphicDefIds.map((defId) => (
+                <GraphicDefCommandItem
+                  key={defId}
+                  graphic_id={defId}
+                  value={value}
+                  setValue={() => {
+                    setValue(defId)
+                    setOpen(false)
+                  }}
+                />
+              ))}
+            </CommandGroup>
+          </ScrollArea>
         </Command>
       </PopoverContent>
     </Popover>
@@ -383,13 +423,15 @@ function GraphicDefCommandItem({
         setValue()
       }}
     >
-      <div className='flex w-full justify-start gap-2'>
+      <div className='flex w-full items-center justify-between gap-2'>
+        <div className='w-full overflow-x-auto overflow-y-hidden text-left text-xs'>
+          {graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}
+        </div>
         <div className='flex'>
           <ImagePreview image={graphicDef.image} />
           <ImagePreview image={graphicDef.bumpMap} />
           <ImagePreview image={graphicDef.iridescentMap} />
         </div>
-        {graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}
         <Check className={cn('mr-2 h-4 w-4', value === graphic_id ? 'opacity-100' : 'opacity-0')} />
       </div>
       <div className='absolute bottom-0 right-0 w-full select-text text-center font-mono text-[0.6rem] opacity-50'>
@@ -402,7 +444,7 @@ function GraphicDefCommandItem({
 function GraphicPreview({ graphic_id, showAll }: { graphic_id: string; showAll?: boolean }) {
   const [graphicDef] = useGraphicDefinition(graphic_id)
   return (
-    <div className='flex'>
+    <div className='flex min-w-5'>
       <ImagePreview image={graphicDef.image} />
       {showAll && (
         <>
@@ -439,7 +481,7 @@ function EditGfxPosition({ position, setPosition }: { position: Vec3; setPositio
       </div>
       <div className='flex items-center gap-1'>
         <ExternalLinkIcon />
-        <Input id='2' type='number' step={0.05} defaultValue={position[2]} onChange={handleUpdatePosition} />
+        <Input id='2' type='number' step={0.01} defaultValue={position[2]} onChange={handleUpdatePosition} />
       </div>
     </div>
   )

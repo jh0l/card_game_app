@@ -429,10 +429,10 @@ function _HandCard({
   const meshDepth = DEPTH.HAND_CARDS * (i + (isActive ? Math.pow(DEPTH.HAND_CARDS, 2) : 1))
   const name = `${identity.def_id}-${identity.inst_id}`
   return (
-    <a.mesh {...(spring as any)} {...bindType} renderOrder={meshDepth} name={name} onClick={onClick}>
+    <a.mesh {...(spring as any)} {...bindType} renderOrder={meshDepth} transparent name={name} onClick={onClick}>
       {/* <planeGeometry args={[1, 1.5, 1, 1]} /> */}
       <boxGeometry args={[1, 1.5, CARD_THICK]} />
-      <meshBasicMaterial color='black' transparent opacity={0} />
+      <meshBasicMaterial color='black' transparent={true} opacity={0} blendAlpha={0} />
       <CardMesh cardDefId={identity.def_id} name={name} meshDepth={meshDepth} />
       {/* <LiveText index={identity} renderOrder={textDepth} position={[-0.45, -0.2, textOffSurface]} /> */}
     </a.mesh>
@@ -642,7 +642,7 @@ function _TableCard({ identity, i }: { identity: CardInstanceIdType; i: number }
   const textOffSurface = -CARD_THICK
   return (
     <>
-      <a.mesh {...(spring as any)} {...bindType} onClick={onClick} name={name}>
+      <a.mesh {...(spring as any)} {...bindType} onClick={onClick} name={name} renderOrder={meshDepth}>
         {/* <planeGeometry args={[1, 1.5, 1, 1]} /> */}
         <boxGeometry args={[1, 1.5, CARD_THICK]} />
         <meshBasicMaterial color='black' transparent opacity={0} />
@@ -835,13 +835,13 @@ export default function PlayArea() {
           {/* <meshBasicMaterial map={planeTexture} color='red' opacity={0.3} transparent /> */}
           <meshBasicMaterial opacity={0} transparent />
         </mesh>
-        <mesh position={[0, 4, -10]}>
-          <planeGeometry args={[width * scale, height * scale, 1, 1]} />
-          {/* transparent material */}
-          <meshBasicMaterial map={planeTexture} color='blue' opacity={0.4} transparent />
-          {/* <meshBasicMaterial map={planeTexture} color='red' /> */}
-          {/* <meshBasicMaterial opacity={0} transparent /> */}
-        </mesh>
+        {/* <mesh position={[0, 4, -10]}> */}
+        {/* <planeGeometry args={[width * scale, height * scale, 1, 1]} /> */}
+        {/* transparent material */}
+        {/* <meshBasicMaterial map={planeTexture} color='blue' transparent opacity={0.1} /> */}
+        {/* <meshBasicMaterial map={planeTexture} color='red' /> */}
+        {/* <meshBasicMaterial opacity={0} transparent /> */}
+        {/* </mesh> */}
       </group>
     </>
   )

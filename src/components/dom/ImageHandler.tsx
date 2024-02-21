@@ -20,7 +20,9 @@ import {
   useImageDefinitionSet,
 } from '@/src/state/assets'
 import { Spinner } from '@/src/components/dom/Spinner'
-import SpinnerLight from './SpinnerLight'
+import SpinnerLight from '@/src/components/dom/SpinnerLight'
+import { UploadIcon } from '@radix-ui/react-icons'
+import { ScrollArea } from '@/src/components/ui/scroll-area'
 
 export function ImageHandler({
   image,
@@ -39,8 +41,9 @@ export function ImageHandler({
   const setNewImage = useImageDefinitionSet(newId || '')
   const newImage = React.useMemo(() => {
     if (!newImageObj) return null
-    if (!newName) {
-      setNewName(newImageObj?.file?.name || newImageObj.src.split('/').pop() || 'untitled')
+    const fileName = newImageObj?.file?.name || newImageObj.src.split('/').pop()
+    if (fileName) {
+      setNewName(fileName)
     }
     if (newImageObj.file) {
       return {
@@ -49,7 +52,7 @@ export function ImageHandler({
       }
     }
     return newImageObj
-  }, [newImageObj, newName])
+  }, [newImageObj])
   const handleNewImageDefinition = () => {
     // use `newId` for image id
     // save image file/url to image atomFamily backed by indexedDB
@@ -91,7 +94,7 @@ export function ImageHandler({
   const [urlInput, setUrlInput] = React.useState('')
   return (
     <div className='flex flex-col gap-2'>
-      <div className='flex gap-1'>
+      <div className='flex justify-between gap-1'>
         <React.Suspense fallback={<Spinner />}>
           <ImageDefCombobox value={image} setValue={setImage} />
         </React.Suspense>
@@ -109,14 +112,56 @@ export function ImageHandler({
         })}
       >
         <Label>Create New Image Definition</Label>
-        <Input
-          className={cn({ 'invisible -my-5 h-0': newType !== 'db' })}
-          id='image'
-          type='file'
-          onChange={handleFileChange}
-        />
+        <Label htmlFor='image'>Source</Label>
+        <Select onValueChange={(e) => setNewType(e === 'url' ? e : 'db')}>
+          <SelectTrigger>
+            <SelectValue placeholder='Local File' />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='db'>From File</SelectItem>
+            <SelectItem value='url'>From URL</SelectItem>
+          </SelectContent>
+        </Select>
+        <Label size='2xs' htmlFor='image_url'>
+          Upload Button
+        </Label>
+        <div
+          className={cn('relative flex h-[52px] items-center justify-center rounded-xl', {
+            'invisible -my-5 h-0': newType !== 'db',
+          })}
+        >
+          <Input
+            className='absolute inset-0 cursor-pointer text-clip rounded-lg border-2 border-dashed border-white/50 text-xs text-white/90 transition-colors duration-200 ease-in-out'
+            id='image'
+            type='file'
+            onChange={handleFileChange}
+          />
+          {/* <div className='pointer-events-none invisible absolute right-2 top-1/2 flex cursor-pointer flex-col justify-center rounded-xl bg-none px-10 md:visible'>
+            <UploadIcon className='size-4' />
+          </div> */}
+          {/* displays file name */}
+        </div>
+
+        {newImageObj?.file?.name && (
+          <>
+            <Label size='2xs' htmlFor='image_url'>
+              File Name
+            </Label>
+            <div className=' z-20 flex w-full overflow-x-auto whitespace-nowrap text-nowrap'>
+              <div className='flex p-2 font-mono text-xs'>
+                {newImageObj?.file?.name || newImageObj?.src.split('/').pop() || 'No File Selected'}
+              </div>
+            </div>
+          </>
+        )}
         <div className={cn('flex items-center gap-1', { 'invisible -my-5 h-0': newType !== 'url' })}>
-          <Input id='image_url' type='text' placeholder='Image URL' onChange={(e) => setUrlInput(e.target.value)} />
+          <Input
+            className='overflow-scroll'
+            id='image_url'
+            type='text'
+            placeholder='Image URL'
+            onChange={(e) => setUrlInput(e.target.value)}
+          />
           <Button
             size='sm'
             onClick={() => {
@@ -131,19 +176,9 @@ export function ImageHandler({
             Load
           </Button>
         </div>
-        <div className='flex min-h-[64px] w-full items-center justify-center rounded border bg-gray-500/10'>
+        <div className='relative flex items-center justify-center rounded border bg-gray-500/10'>
           <ImageResizer image={newImage} setNewImageObj={setNewImageObj} />
         </div>
-        <Label htmlFor='image'>Source</Label>
-        <Select onValueChange={(e) => setNewType(e === 'url' ? e : 'db')}>
-          <SelectTrigger className='w-[180px]'>
-            <SelectValue placeholder='Local File' />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value='db'>From File</SelectItem>
-            <SelectItem value='url'>From URL</SelectItem>
-          </SelectContent>
-        </Select>
         <Label htmlFor='image_name'>Image Name</Label>
         <Input
           id='image_name'
@@ -153,7 +188,7 @@ export function ImageHandler({
           value={newName}
         />
         {newImage && (
-          <Button onClick={handleNewImageDefinition} size='sm'>
+          <Button onClick={handleNewImageDefinition} size='sm' className='animate-pulse'>
             Save Image
           </Button>
         )}
@@ -224,7 +259,12 @@ function ImageResizer({ image, setNewImageObj }: ResizeImageProps) {
         return
       }
       const resBlob = await res.blob()
-      const newFileName = image.src.split('/').pop() || 'untitled'
+      let newFileName = 'untitled'
+      if (image.file && 'file' in image.file && image.file.file) {
+        newFileName = image.file.file.name
+      } else if (image.src) {
+        newFileName = image.src.split('/').pop() || 'untitled'
+      }
       setNewImageObj({ src: URL.createObjectURL(resBlob), file: new File([resBlob], newFileName) })
     } catch (e) {
       alert('Error resizing image')
@@ -233,49 +273,55 @@ function ImageResizer({ image, setNewImageObj }: ResizeImageProps) {
     setLoading(false)
   }
   if (!image) {
-    return <span className='text-white/50'>👁👄👁 no image</span>
+    return <span className='p-3 text-white/50'>👁👄👁</span>
   }
 
   return (
-    <div className='relative flex h-52 w-full items-center justify-between gap-4 p-3'>
-      <div className='flex items-center gap-2'>
-        <div className='text-xs'>
-          <div>Details:</div>
+    <div className='relative flex flex-col items-center justify-between gap-4 p-3'>
+      <div className='relative flex items-center gap-2'>
+        <div className='bg-checkered bg-size-md absolute inset-0 z-0 opacity-10'></div>
+        <a href={image.src} target='_blank' rel='noreferrer' className='z-10'>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={image.src} alt='new image' className='object-contain shadow' />
+        </a>
+        {/* green crosshair to indicate center */}
+        <div className='absolute inset-0 z-20 flex animate-spin items-center justify-center gap-2'>
+          <div className='absolute h-3 w-0.5 rounded bg-green-500'></div>
+          <div className='absolute h-0.5 w-3 rounded bg-green-500'></div>
+        </div>
+      </div>
+      <div className='flex w-full justify-between'>
+        {loading ? (
           <div>
-            {img.o.width}w &times; {img.o.height}h
+            <SpinnerLight />
           </div>
+        ) : img.o.width > 512 && img.o.height > 512 ? (
+          <div className='flex flex-col items-start justify-start gap-2'>
+            <div className='animate-pulse text-sm text-red-500'>CHONKY IMAGE</div>
+            <Button size='sm' onClick={handleResizeImageRequest}>
+              RESIZE IMAGE
+            </Button>
+          </div>
+        ) : (
+          <div className='relative flex flex-col items-center justify-center gap-2 pr-5'>
+            <img
+              src='https://2.bp.blogspot.com/-_PLLVhFgJF4/VdMrrpv0ZXI/AAAAAAAATRM/cKxfSA7qbjg/s1600/impressive-very-nice.gif'
+              alt='impressive, very nice'
+              className='absolute h-20 rounded object-cover opacity-20'
+            />
+            <div className='z-20 flex flex-col items-center justify-center gap-2 text-center text-sm text-green-500'>
+              GOOD SIZE
+              <Check />
+            </div>
+          </div>
+        )}
+        <div className='w-1/2 px-2 font-mono text-xs'>
+          SIZE
+          <div>w: {img.o.width}px</div>
+          <div>h: {img.o.height}px</div>
           <div>{img.size / 1000} kB</div>
         </div>
-        <a href={image.src} target='_blank' rel='noreferrer'>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={image.src} alt='new image' className='max-h-40 max-w-40 object-contain shadow' />
-        </a>
       </div>
-      {loading ? (
-        <div>
-          <SpinnerLight />
-        </div>
-      ) : img.o.width > 512 && img.o.height > 512 ? (
-        <div className='flex flex-col items-center justify-center gap-2 pr-5'>
-          <div className='animate-pulse text-sm text-red-500'>CHONKY IMAGE ALERT</div>
-          <Button size='sm' onClick={handleResizeImageRequest}>
-            RESIZE IMAGE
-          </Button>
-        </div>
-      ) : (
-        <div className='relative flex flex-col items-center justify-center gap-2 pr-5'>
-          <img
-            src='https://2.bp.blogspot.com/-_PLLVhFgJF4/VdMrrpv0ZXI/AAAAAAAATRM/cKxfSA7qbjg/s1600/impressive-very-nice.gif'
-            alt='impressive, very nice'
-            className='absolute w-36 rounded object-cover opacity-20'
-          />
-          <div className='z-20 text-sm text-green-500'>
-            Image is a good size
-            <br />
-            save image
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -293,7 +339,13 @@ function ImageDefCombobox({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant='outline' role='combobox' aria-expanded={open} className='w-full justify-between' size='sm'>
+        <Button
+          variant='outline'
+          role='combobox'
+          aria-expanded={open}
+          className='w-3/4 justify-between overflow-hidden'
+          size='sm'
+        >
           {imageDefValue.url ? (
             <div className='flex items-center justify-start gap-2'>
               <Check className={'mr-2 size-4 opacity-100'} />

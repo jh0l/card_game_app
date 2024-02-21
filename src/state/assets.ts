@@ -74,9 +74,9 @@ export const CARD_TYPE_PROPERTIES: Record<CardType, CardTypeProp[]> = {
   counter: ['description', 'name'],
 }
 export const CARD_ATTRIBUTE_VALUE_TYPES: Record<string, 'string' | 'number' | 'textarea'> = {
-  health: 'number',
-  attack: 'number',
-  defence: 'number',
+  health: 'string',
+  attack: 'string',
+  defence: 'string',
   description: 'textarea',
   name: 'string',
 }

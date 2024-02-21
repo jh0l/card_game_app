@@ -5,10 +5,10 @@ import SpinnerLight from '@/src/components/dom/SpinnerLight'
 import { Button } from '@/src/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/src/components/ui/tabs'
 import dynamic from 'next/dynamic'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import GraphicsContent from '@/src/components/dom/editor2/GraphicsEditor'
 import { HandContent, CardsContent } from '@/src/components/dom/editor2/CardTabContent'
-import { atom, useRecoilState } from 'recoil'
+import { atom, useRecoilState, useRecoilState_TRANSITION_SUPPORT_UNSTABLE } from 'recoil'
 import { IndexedDBEffect } from '@/src/state/effects'
 const GameClient = dynamic(() => import('@/src/components/GameClient'), { ssr: false, loading: SpinnerLight })
 
@@ -17,7 +17,7 @@ export default function Page() {
     <>
       <main className='relative h-[100svh]'>
         <Editor />
-        {/* <GameClient /> */}
+        <GameClient />
       </main>
     </>
   )
@@ -58,11 +58,17 @@ const selectedEditorTab = atom<string>({
   default: 'hand',
   effects: [IndexedDBEffect('selectedEditorTab', '')],
 })
-const useSelectedEditorTab = () => useRecoilState(selectedEditorTab)
+const useSelectedEditorTab = () => useRecoilState_TRANSITION_SUPPORT_UNSTABLE(selectedEditorTab)
 // contains tabs for Cards, Graphics, Images, Table
 function EditorContent({ hide }: { hide?: boolean }) {
-  const [selected, setSelected] = useSelectedEditorTab()
+  const [, startTransition] = useTransition()
+  const [selected, _setSelected] = useSelectedEditorTab()
   const [hideState, setHide] = useState(false)
+  const setSelected = (tab: string) => {
+    startTransition(() => {
+      _setSelected(tab)
+    })
+  }
   useEffect(() => {
     if (hide && !hideState) {
       setTimeout(() => {

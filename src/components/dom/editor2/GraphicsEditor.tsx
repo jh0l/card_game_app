@@ -97,7 +97,7 @@ export default function GraphicsContent() {
   }
   return (
     <>
-      <div className='px-1 pt-1'>
+      <div className='w-[98%] px-1 pt-1'>
         <Button size='sm' className='w-full' onClick={handleNewGraphicDefinition}>
           New Graphic Definition
         </Button>
@@ -117,7 +117,7 @@ export default function GraphicsContent() {
           id='gfx_editor_panel_1'
         >
           <ScrollArea className='size-full'>
-            <div className='flex h-full flex-wrap items-center justify-around gap-1 p-1' ref={listRef}>
+            <div className='flex h-full w-[98%] flex-wrap items-center justify-start gap-1 px-1 pt-1' ref={listRef}>
               {gfxDefIds.map((id, i) => (
                 <GfxDefinitionListItem index={i} key={id} definitionId={id} />
               ))}
@@ -192,14 +192,16 @@ type TextureMapType = 'image' | 'bump' | 'irid'
 function GraphicEditor({ handleFocus }: { handleFocus: (gfxDefId: string) => void }) {
   const [clonedId, setClonedId] = useState(() => randomId())
   const setClone = useGraphicDefinitionSet(clonedId)
-
+  const [, startTransition] = useTransition()
   const setIds = useGraphicDefinitionIdsListSet()
   const [selectedGfxDefId, setSelected] = useRecoilState(selectedGraphicDefIdState)
   const [gfxDef, setGfxDef] = useGraphicDefinition(selectedGfxDefId)
   const reset = useGraphicDefinitionReset(selectedGfxDefId)
   const [tabValue, setTabValue] = useRecoilState(selectedGraphicEditorTabState)
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setGfxDef((prev) => ({ ...prev, name: e.target.value }))
+    startTransition(() => {
+      setGfxDef((prev) => ({ ...prev, name: e.target.value }))
+    })
   }
   const setGraphicMap = (value: string, type: TextureMapType) => {
     setGfxDef((prev) => {
@@ -290,8 +292,8 @@ function GraphicImageEditor({
 }) {
   const [imageDefIds] = useImageDefinitionIds()
   return (
-    <div className='flex flex-col gap-2'>
-      <div className='flex h-16 items-center justify-center text-xs italic text-gray-500/70'>Import an image</div>
+    <div className='flex max-w-xs flex-col gap-2'>
+      <div className='flex h-10 items-center justify-center text-xs italic text-gray-500/70'>Import an image</div>
       <ImageHandler image={{ image_id: value }} setImage={(x) => setValue(x.image_id, type)} />
       {/* if bump or iridescence map is missing, show button below */}
       Also apply to
