@@ -187,6 +187,7 @@ export interface ImageDefinitionUrl extends ImageDefinitionType {
   url: string
   width: number
   height: number
+  size_KB: number
 }
 
 export const imageDefinitionURLSelector = selectorFamily<ImageDefinitionUrl, string>({
@@ -195,7 +196,7 @@ export const imageDefinitionURLSelector = selectorFamily<ImageDefinitionUrl, str
     (id) =>
     async ({ get }) => {
       const image = get(imageDefinitionIndexed(id))
-      const imageUrl: ImageDefinitionUrl = { ...image, width: 1, height: 1, url: image.url || '' }
+      const imageUrl: ImageDefinitionUrl = { ...image, width: 1, height: 1, url: image.url || '', size_KB: 0 }
       if (imageUrl.file) {
         const url = URL.createObjectURL(imageUrl.file.blob)
         const img = new Image()
@@ -203,7 +204,8 @@ export const imageDefinitionURLSelector = selectorFamily<ImageDefinitionUrl, str
         await new Promise((resolve) => (img.onload = resolve))
         const width = img.width
         const height = img.height
-        return { ...imageUrl, url, width, height }
+        const size_KB = Math.ceil(imageUrl.file.blob.size / 1024)
+        return { ...imageUrl, url, width, height, size_KB }
       }
       if (imageUrl.url) {
         const url: string = imageUrl.url
@@ -212,6 +214,7 @@ export const imageDefinitionURLSelector = selectorFamily<ImageDefinitionUrl, str
         await new Promise((resolve) => (img.onload = resolve))
         const width = img.width
         const height = img.height
+        // const size_KB =
         return { ...imageUrl, width, height }
       }
       return { ...imageUrl, width: 0, height: 0 }

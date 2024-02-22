@@ -15,6 +15,7 @@ import {
   ImageDefinitionIdType,
   randomId,
   useImageDefUrl,
+  useImageDefUrl2,
   useImageDefinitionIds,
   useImageDefinitionIdsList,
   useImageDefinitionSet,
@@ -23,6 +24,7 @@ import { Spinner } from '@/src/components/dom/Spinner'
 import SpinnerLight from '@/src/components/dom/SpinnerLight'
 import { UploadIcon } from '@radix-ui/react-icons'
 import { ScrollArea } from '@/src/components/ui/scroll-area'
+import { Checkbox } from '../ui/checkbox'
 
 export function ImageHandler({
   image,
@@ -86,24 +88,23 @@ export function ImageHandler({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewImageObj((e.target.files && e.target.files[0] && { src: '', file: e.target.files[0] }) || null)
   }
-  React.useEffect(() => {
-    if (imageDefIds.length < 1) {
-      setNewId(randomId())
-    }
-  }, [imageDefIds])
+  // React.useLayoutEffect(() => {
+  //   if (imageDefIds.length < 1) {
+  //     setNewId(randomId())
+  //   }
+  // }, [imageDefIds])
   const [urlInput, setUrlInput] = React.useState('')
   return (
     <div className='flex flex-col gap-2'>
-      <div className='flex justify-between gap-1'>
-        <React.Suspense fallback={<Spinner />}>
-          <ImageDefCombobox value={image} setValue={setImage} />
-        </React.Suspense>
+      <div className='flex items-center justify-between gap-1 overflow-hidden'>
+        <ImageDefCombobox value={image} setValue={setImage} />
         <Button
           size='sm'
+          className='h-10'
           variant={newId ? 'destructive' : 'outline'}
           onClick={() => setNewId((x) => (!x ? randomId() : false))}
         >
-          {newId ? 'cancel' : 'new'}
+          {newId ? 'back' : 'new'}
         </Button>
       </div>
       <div
@@ -112,7 +113,7 @@ export function ImageHandler({
         })}
       >
         <Label>Create New Image Definition</Label>
-        <Label htmlFor='image'>Source</Label>
+        {/* <Label htmlFor='image'>Source</Label>
         <Select onValueChange={(e) => setNewType(e === 'url' ? e : 'db')}>
           <SelectTrigger>
             <SelectValue placeholder='Local File' />
@@ -121,10 +122,10 @@ export function ImageHandler({
             <SelectItem value='db'>From File</SelectItem>
             <SelectItem value='url'>From URL</SelectItem>
           </SelectContent>
-        </Select>
-        <Label size='2xs' htmlFor='image_url'>
+        </Select> */}
+        {/* <Label size='2xs' htmlFor='image_url'>
           Upload Button
-        </Label>
+        </Label> */}
         <div
           className={cn('relative flex h-[52px] items-center justify-center rounded-xl', {
             'invisible -my-5 h-0': newType !== 'db',
@@ -193,9 +194,41 @@ export function ImageHandler({
           </Button>
         )}
       </div>
+      <ViewImage image_id={image?.image_id || ''} />
     </div>
   )
 }
+
+function ViewImage({ image_id }: { image_id: string }) {
+  const img = useImageDefUrl2(image_id)
+  const src = img.url
+  return (
+    <div className='relative flex flex-col items-center justify-between gap-4 p-3'>
+      <Label size='2xs'>Current Image</Label>
+      <div className='relative flex items-center gap-2'>
+        <div className='absolute inset-0 z-0 bg-checkered bg-size-md opacity-10'></div>
+        <a href={src} target='_blank' rel='noreferrer' className='z-10'>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt='new image' className='object-contain shadow' />
+        </a>
+        {/* green crosshair to indicate center */}
+        <div className='absolute inset-0 z-20 flex items-center justify-center gap-2'>
+          <div className='absolute h-3 w-0.5 rounded bg-green-500'></div>
+          <div className='absolute h-0.5 w-3 rounded bg-green-500'></div>
+        </div>
+      </div>
+      <div className='flex w-full justify-between'>
+        <div className='w-1/2 px-2 font-mono text-xs'>
+          SIZE
+          <div>w: {img.width}px</div>
+          <div>h: {img.height}px</div>
+          <div>{img.size_KB} kB</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface ResizeImageProps {
   image:
     | {
@@ -279,13 +312,13 @@ function ImageResizer({ image, setNewImageObj }: ResizeImageProps) {
   return (
     <div className='relative flex flex-col items-center justify-between gap-4 p-3'>
       <div className='relative flex items-center gap-2'>
-        <div className='bg-checkered bg-size-md absolute inset-0 z-0 opacity-10'></div>
+        <div className='absolute inset-0 z-0 bg-checkered bg-size-md opacity-10'></div>
         <a href={image.src} target='_blank' rel='noreferrer' className='z-10'>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={image.src} alt='new image' className='object-contain shadow' />
         </a>
         {/* green crosshair to indicate center */}
-        <div className='absolute inset-0 z-20 flex animate-spin items-center justify-center gap-2'>
+        <div className='absolute inset-0 z-20 flex items-center justify-center gap-2'>
           <div className='absolute h-3 w-0.5 rounded bg-green-500'></div>
           <div className='absolute h-0.5 w-3 rounded bg-green-500'></div>
         </div>
@@ -335,7 +368,6 @@ function ImageDefCombobox({
 }) {
   const [open, setOpen] = React.useState(false)
   const imageDefIds = useImageDefinitionIdsList()
-  const imageDefValue = useImageDefUrl({ image_id: value?.image_id || '' })
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -343,28 +375,11 @@ function ImageDefCombobox({
           variant='outline'
           role='combobox'
           aria-expanded={open}
-          className='w-3/4 justify-between overflow-hidden'
-          size='sm'
+          className='relative flex h-fit w-[79%] justify-between'
         >
-          {imageDefValue.url ? (
-            <div className='flex items-center justify-start gap-2'>
-              <Check className={'mr-2 size-4 opacity-100'} />
-              <a
-                href={imageDefValue.url}
-                target='_blank'
-                rel='noreferrer'
-                onClick={(e) => {
-                  e.stopPropagation()
-                }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={imageDefValue.url} alt='image definition image' className='size-12 object-contain' />
-              </a>
-              {imageDefValue.name || <span className='italic text-red-500/70'>image has no name</span>}
-            </div>
-          ) : (
-            'Select Image...'
-          )}
+          <React.Suspense fallback={<Spinner />}>
+            <ImageDefSelectedItem image_id={value?.image_id || ''} />
+          </React.Suspense>
           <ChevronsUpDown className='ml-2 size-4 shrink-0 opacity-50' />
         </Button>
       </PopoverTrigger>
@@ -372,23 +387,72 @@ function ImageDefCombobox({
         <Command>
           {imageDefIds.length > 3 && <CommandInput placeholder='Search Images...' />}
           {imageDefIds.length === 0 && <CommandGroup heading='No Images to choose from  ' />}
-          {imageDefIds.length > 1 && <CommandEmpty>No Images Found</CommandEmpty>}
-          <CommandGroup>
-            {imageDefIds.map((defId) => (
-              <ImageDefCommandItem
-                key={defId}
-                image_id={defId}
-                value={value?.image_id || ''}
-                setValue={() => {
-                  setValue({ image_id: defId })
-                  setOpen(false)
-                }}
-              />
-            ))}
-          </CommandGroup>
+          {imageDefIds.length > 0 && <CommandEmpty>No Images Found</CommandEmpty>}
+          <ScrollArea className='max-h-72 overflow-y-scroll'>
+            <CommandGroup>
+              {imageDefIds.map((defId) => (
+                <React.Suspense fallback={<Spinner />} key={defId}>
+                  <ImageDefCommandItem
+                    key={defId}
+                    image_id={defId}
+                    value={value?.image_id || ''}
+                    setValue={() => {
+                      setValue({ image_id: defId })
+                      setOpen(false)
+                    }}
+                  />
+                </React.Suspense>
+              ))}
+            </CommandGroup>
+          </ScrollArea>
+          <CommandItem>
+            <div className='flex w-full flex-wrap items-center justify-start gap-2 rounded bg-foreground/10 p-1 text-xs'>
+              <div>Apply change to</div>
+              <Button variant='outline' size='xs' className='flex items-center justify-start gap-2'>
+                <Checkbox />
+                <span>Image Map</span>
+              </Button>
+              <Button variant='outline' size='xs' className='flex items-center justify-start gap-2'>
+                <Checkbox />
+                <span>Bump Map</span>
+              </Button>
+              <Button variant='outline' size='xs' className='flex items-center justify-start gap-2'>
+                <Checkbox />
+                <span>Irid. Map</span>
+              </Button>
+            </div>
+          </CommandItem>
         </Command>
       </PopoverContent>
     </Popover>
+  )
+}
+
+function ImageDefSelectedItem({ image_id }: { image_id: string }) {
+  const imageDefValue = useImageDefUrl2(image_id)
+  return (
+    <>
+      {imageDefValue.url ? (
+        <div className='flex w-[90%] items-center justify-between gap-1'>
+          <div className='w-[90%] overflow-hidden text-left text-xs'>
+            {imageDefValue.name || <span className='italic text-red-500/70'>image has no name</span>}
+          </div>
+          <a
+            href={imageDefValue.url}
+            target='_blank'
+            rel='noreferrer'
+            onClick={(e) => {
+              e.stopPropagation()
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={imageDefValue.url} alt='image definition image' className='size-6 object-contain' />
+          </a>
+        </div>
+      ) : (
+        'Select Image...'
+      )}
+    </>
   )
 }
 
@@ -396,6 +460,7 @@ function ImageDefCommandItem({ image_id, setValue, value }: { image_id: string; 
   const imageDef = useImageDefUrl({ image_id })
   return (
     <CommandItem
+      value={image_id}
       onSelect={() => {
         setValue()
       }}

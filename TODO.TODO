@@ -1,0 +1,23 @@
+TODO:
+    [ ] add image definition list
+        [ ] new image
+        [ ] rename existing image
+        [ ] replace image source for an existing image definition        
+        [ ] delete an image
+        [ ] alias an image definition to another image definition?
+        [ ] upload images in bulk
+    [ ] create card definition template from slctd card def dropdown
+        [ ] spawn dialog form with card definition based off current card
+             definition selected
+        [ ] form allows changing values to different values, and setting values
+            to '' (empty string)
+    [ ] create a card definition from template using chevron side button
+        connected to "NEW CARD DEFINITION" button
+    [ ] apply a template to an existing card definition?
+    [ ] create card definition dialog form?
+    [ ] edit card definition templates
+        [ ] change template values
+        [ ] delete templates
+    [ ] editing template values propogate changes to card definitions
+         that use that template?
+         

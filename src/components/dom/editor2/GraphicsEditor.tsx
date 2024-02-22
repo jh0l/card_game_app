@@ -128,11 +128,11 @@ export default function GraphicsContent() {
         <ResizableHandle withHandle id='editor_panel_handle' />
         <ResizablePanel
           key={sizes[1] + 'p2'}
-          className='overflow-y-scroll shadow-inner shadow-black/10'
+          className='overflow-y-scroll shadow-black/10'
           defaultSize={sizes[1]}
           id='gfx_editor_panel_2'
         >
-          <ScrollArea className='h-full'>
+          <ScrollArea className='size-full max-w-xs overflow-hidden'>
             <GraphicEditor handleFocus={handleFocus} />
             <div className='my-20 flex w-full items-center justify-center opacity-10'>_____</div>
           </ScrollArea>
@@ -151,18 +151,17 @@ function GfxDefinitionListItem({ definitionId, index }: { definitionId: string; 
         variant='secondary'
         onClick={() => setSelectedGfxDefId(definitionId)}
         className={cn(
-          'relative flex h-11 w-full items-center justify-between gap-2 rounded bg-background/50 p-1 px-2',
+          'relative flex h-11 w-full max-w-xs items-center justify-between gap-2 overflow-hidden rounded bg-background/50 p-1 px-1',
           {
-            'bg-primary/50 hover:bg-primary': selectedId === definitionId,
+            'bg-primary/50 hover:bg-primary/70': selectedId === definitionId,
           },
         )}
       >
-        <div className='flex items-center gap-2 font-mono text-xs'>
-          <div>{index}</div>
+        <div className='h-full font-mono text-xs opacity-60'>{index}</div>
+        <div className='w-full overflow-x-auto overflow-y-hidden text-left text-xs'>{gfxDef.name}</div>
+        <div className='flex w-full max-w-fit items-center justify-center'>
           <GraphicInstancePreview graphic={gfxDef} />
         </div>
-        <div className='text-sm'>{gfxDef.name}</div>
-        <div className='absolute -top-0.5 right-1 font-mono text-[9px] opacity-40'>{definitionId}</div>
       </Button>
     </>
   )
@@ -174,9 +173,9 @@ function GraphicInstancePreview({ graphic }: { graphic: GraphicDefinitionType })
   const iridMapDef = useImageDefUrl(graphic.iridescentMap)
   return (
     <div className='flex'>
-      <img src={imageDef.url} alt=' ' className='h-8 object-contain pr-0.5' />
-      <img src={bumpMapDef.url} alt=' ' className='h-8 object-contain pr-0.5' />
-      <img src={iridMapDef.url} alt=' ' className='h-8 object-contain pr-0.5' />
+      <img src={imageDef.url} alt=' ' className='h-8 max-w-8 object-contain pr-0.5' />
+      <img src={bumpMapDef.url} alt=' ' className='h-8 max-w-8 object-contain pr-0.5' />
+      <img src={iridMapDef.url} alt=' ' className='h-8 max-w-8 object-contain pr-0.5' />
     </div>
   )
 }
@@ -231,8 +230,8 @@ function GraphicEditor({ handleFocus }: { handleFocus: (gfxDefId: string) => voi
   }
   if (!gfxDef || !selectedGfxDefId) return null
   return (
-    <div className='relative h-full px-2' key={selectedGfxDefId}>
-      <div className='flex w-full items-center justify-between gap-2 py-2'>
+    <div className='relative h-full w-[98%]' key={selectedGfxDefId}>
+      <div className='flex w-full items-center justify-between gap-2 p-1'>
         <Label size='xs'>Graphic Definition</Label>
         <div className='flex gap-2'>
           <Button size='xs' variant='secondary' onClick={handleClone}>
@@ -243,11 +242,11 @@ function GraphicEditor({ handleFocus }: { handleFocus: (gfxDefId: string) => voi
           </Button>
         </div>
       </div>
-      <Label size='2xs' className='flex'>
+      <Label size='2xs' className='flex p-1'>
         <span className='w-full'>Definition Name</span>
         <div className='w-full select-text text-center font-mono text-[10px] opacity-40'>{selectedGfxDefId}</div>
       </Label>
-      <div className='flex w-full items-center justify-between pb-0.5 text-xs'>
+      <div className='flex w-full items-center justify-between p-1 text-xs'>
         <Input id='card_name' defaultValue={gfxDef.name} onChange={handleNameChange} className='h-9' />
         <div className='flex items-center justify-center pl-2'>
           <Button size='icon' variant='outline' className='scale-75' onClick={() => handleFocus(selectedGfxDefId)}>
@@ -257,7 +256,7 @@ function GraphicEditor({ handleFocus }: { handleFocus: (gfxDefId: string) => voi
       </div>
       <Tabs
         defaultValue='image'
-        className='w-full max-w-xs'
+        className='max-w-xs overflow-hidden'
         key={selectedGfxDefId}
         value={tabValue}
         onValueChange={setTabValue}
@@ -267,13 +266,13 @@ function GraphicEditor({ handleFocus }: { handleFocus: (gfxDefId: string) => voi
           <TabsTrigger value='bump'>Bump</TabsTrigger>
           <TabsTrigger value='irid'>Irid.</TabsTrigger>
         </TabsList>
-        <TabsContent value='image' className='h-full'>
+        <TabsContent value='image' className='h-full px-1'>
           <GraphicImageEditor type='image' setValue={setGraphicMap} value={gfxDef.image.image_id} />
         </TabsContent>
-        <TabsContent value='bump' className='h-full'>
+        <TabsContent value='bump' className='h-full px-1'>
           <GraphicImageEditor type='bump' setValue={setGraphicMap} value={gfxDef.bumpMap.image_id} />
         </TabsContent>
-        <TabsContent value='irid' className='h-full'>
+        <TabsContent value='irid' className='h-full px-1'>
           <GraphicImageEditor type='irid' setValue={setGraphicMap} value={gfxDef.iridescentMap.image_id} />
         </TabsContent>
       </Tabs>
@@ -290,60 +289,16 @@ function GraphicImageEditor({
   setValue: (value: string, type: TextureMapType) => void
   type: TextureMapType
 }) {
-  const [imageDefIds] = useImageDefinitionIds()
   return (
-    <div className='flex max-w-xs flex-col gap-2'>
-      <div className='flex h-10 items-center justify-center text-xs italic text-gray-500/70'>Import an image</div>
+    <div className='flex flex-col gap-2 overflow-hidden py-3'>
+      <Label size='2xs'>Image Definition</Label>
       <ImageHandler image={{ image_id: value }} setImage={(x) => setValue(x.image_id, type)} />
-      {/* if bump or iridescence map is missing, show button below */}
-      Also apply to
-      <Checkbox />
-      <Checkbox />
     </div>
-  )
-}
-
-function ImageDefComboBox({ imageDefId, setValue }: { imageDefId: string; setValue: (value: string) => void }) {
-  const [imageDef] = useImageDefinition(imageDefId)
-  const [open, setOpen] = useState(false)
-  const [imageDefIds] = useImageDefinitionIds()
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          id='image_definition'
-          variant='outline'
-          role='combobox'
-          aria-expanded={open}
-          className='w-full justify-between'
-          size='sm'
-        >
-          {imageDefId ? (
-            <div className='flex items-center justify-start gap-2'>
-              <div className='flex'>
-                <ImagePreview image={imageDefId} />
-              </div>
-              {imageDef.name || <span className='italic text-red-500/70'>Image has no name</span>}
-            </div>
-          ) : (
-            <span className='text-xs italic text-gray-500/70'>Select Image</span>
-          )}
-          <ChevronsUpDown className='ml-2 size-4 shrink-0 opacity-50' />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className='w-full min-w-[200px] max-w-xs p-0'>
-        <Command>
-          {imageDefIds.length === 0 && <CommandGroup heading='No Images to choose from  ' />}
-          {imageDefIds.length > 3 && <CommandInput placeholder='Search Images...' />}
-          {imageDefIds.length > 1 && <CommandEmpty>No Images Found</CommandEmpty>}
-        </Command>
-      </PopoverContent>
-    </Popover>
   )
 }
 
 export function ImagePreview({ image }: { image?: ImageDefinitionIdType | string }) {
   const id = image ? (typeof image === 'string' ? image : image.image_id) : ''
   const imageDef = useImageDefUrl2(id)
-  return <img src={imageDef.url} alt=' ' className='h-8 object-contain pr-0.5' />
+  return <img src={imageDef.url} alt=' ' className=' max-w-6 object-contain pr-0.5' />
 }

@@ -92,7 +92,7 @@ function CardDefComboBox({ value, setValue }: { value?: string; setValue: (value
           {value ? (
             <div className='flex w-full flex-wrap items-center justify-between gap-1'>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <div className='max-w-48 overflow-x-auto overflow-y-hidden text-left text-xs'>
+              <div className='max-w-52 overflow-x-auto overflow-y-hidden text-left text-xs'>
                 {cardDefValue.name || <span className='italic text-red-500/70'>card has no name</span>}
               </div>
               <CardGraphicPreview graphics={cardDefValue.graphics} />
@@ -134,12 +134,12 @@ function CardDefCommandItem({ id, setValue, value }: { id: string; setValue: (va
   const [cardDef] = useCardDefinition(id)
   return (
     <CommandItem
-      value={`${cardDef.name} ${cardDef.id}`}
+      value={id}
       onSelect={() => {
         setValue(id)
       }}
     >
-      <div className='flex w-full items-center justify-between gap-2'>
+      <div className='flex w-full items-center justify-between gap-1 text-xs'>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <div className='w-full overflow-x-auto overflow-y-hidden text-left text-xs'>
           {cardDef.name || <span className='italic text-red-500/70'>card has no name</span>}
@@ -289,10 +289,9 @@ function CardDefinitionListItem({ definitionId, index }: { definitionId: string;
     >
       <div className='h-full font-mono text-xs opacity-60'>{index}</div>
       <div className='w-full overflow-x-auto overflow-y-hidden text-left text-xs'>{cardDefinition.name}</div>
-      <div className='flex items-center justify-center'>
+      <div className='flex w-full max-w-fit items-center justify-center'>
         <CardGraphicPreview graphics={cardDefinition.graphics} />
       </div>
-      <div className='absolute -top-0.5 right-1 font-mono text-[9px] opacity-40'>{cardDefinition.id}</div>
     </Button>
   )
 }

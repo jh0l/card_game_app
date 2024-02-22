@@ -184,16 +184,15 @@ function GraphicInstCommandItem({
   const [graphicDef] = useGraphicDefinition(graphic.graphic_id)
   return (
     <CommandItem
+      value={String(index)}
       onSelect={() => {
         setValue()
       }}
     >
-      <div className='flex w-full items-center justify-between gap-2 text-xs'>
+      <div className='flex w-full flex-wrap items-center justify-between gap-1 text-xs'>
         <span className='font-mono text-[10px]'>{index}</span>
-        <div className='flex w-full items-center justify-between'>
-          <div className='w-full'>
-            {graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}
-          </div>
+        <div className='w-full max-w-44 overflow-x-auto overflow-y-hidden text-left text-xs'>
+          {graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}
         </div>
         <div className='size-8'>
           <GraphicPreview graphic_id={graphic.graphic_id} />
@@ -203,9 +202,9 @@ function GraphicInstCommandItem({
             <EyeNoneIcon />
           </div>
         )}
-        <Check className={cn('mr-2 h-4 w-4', value === graphic.inst_id ? 'opacity-100' : 'opacity-0')} />
+        <div className='w-8 text-[0.5rem] text-primary'>{graphic.label}</div>
       </div>
-      <div className='text-[0.5rem] text-primary'>{graphic.label}</div>
+      <Check className={cn('mr-2 h-4 w-4', value === graphic.inst_id ? 'opacity-100' : 'opacity-0')} />
     </CommandItem>
   )
 }
@@ -311,7 +310,7 @@ function EditCardGraphic({ cardDefId }: { cardDefId: string }) {
       <Label size='2xs'>Instance Label</Label>
       <Input defaultValue={selectedGfx.label} onChange={handleLabel} />
       <Label size='2xs' htmlFor='graphic_definition'>
-        Instance Graphic Definition
+        Graphic Definition
       </Label>
       <GraphicDefCombobox value={selectedGfx.graphic_id} setValue={(r) => handleChange('graphic_id', r)} />
       <div className='w-full select-text text-center font-mono text-[0.6rem] opacity-50'>{selectedGfx.graphic_id}</div>
@@ -364,8 +363,8 @@ function GraphicDefCombobox({ value, setValue }: { value: string; setValue: (val
           className='relative flex h-fit w-full justify-between'
         >
           {graphicDef.image.image_id || graphicDef.name ? (
-            <div className='flex w-full flex-wrap items-center justify-between gap-1'>
-              <div className='max-w-48 overflow-x-auto overflow-y-hidden text-left text-xs'>
+            <div className='flex w-fit flex-wrap items-center justify-between gap-1'>
+              <div className='max-w-56 overflow-hidden text-left text-xs'>
                 {graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}
               </div>
               <div className='flex'>
@@ -418,16 +417,17 @@ function GraphicDefCommandItem({
   const [graphicDef] = useGraphicDefinition(graphic_id)
   return (
     <CommandItem
+      value={graphic_id}
       className='relative'
       onSelect={() => {
         setValue()
       }}
     >
-      <div className='flex w-full items-center justify-between gap-2'>
-        <div className='w-full overflow-x-auto overflow-y-hidden text-left text-xs'>
+      <div className='flex w-full items-center justify-between gap-1'>
+        <div className='w-full overflow-x-auto overflow-y-hidden break-all text-left text-xs'>
           {graphicDef.name || <span className='italic text-red-500/70'>graphic has no name</span>}
         </div>
-        <div className='flex'>
+        <div className='flex max-w-24 items-center justify-center'>
           <ImagePreview image={graphicDef.image} />
           <ImagePreview image={graphicDef.bumpMap} />
           <ImagePreview image={graphicDef.iridescentMap} />

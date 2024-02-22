@@ -39,7 +39,7 @@ import { atom, useRecoilState, useResetRecoilState } from 'recoil'
 export function CardPropEditor({ cardDefId }: { cardDefId: string }) {
   const [cardDef] = useCardDefinition(cardDefId)
   return (
-    <div className='flex flex-col gap-2'>
+    <div className='flex flex-col gap-2 px-1'>
       {cardDef.cardType === undefined && <CardTypeComboBox cardDefId={cardDefId} />}
       {cardDef.cardType && <EditCardType cardDefId={cardDefId} />}
       {cardDef.cardType && (
