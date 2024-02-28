@@ -1,6 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
 'use client'
-import { Spinner } from '@/src/components/dom/Spinner'
 import { Button } from '@/src/components/ui/button'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/src/components/ui/resizable'
 import { ScrollArea } from '@/src/components/ui/scroll-area'
@@ -8,32 +7,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/src/components/ui/ta
 import { cn } from '@/src/lib/utils'
 import {
   GraphicDefinitionType,
-  GraphicInstanceType,
   ImageDefinitionIdType,
   randomId,
   selectedGraphicDefIdState,
   useGraphicDefinition,
   useGraphicDefinitionIds,
-  useGraphicDefinitionIdsList,
   useGraphicDefinitionIdsListSet,
   useGraphicDefinitionReset,
   useGraphicDefinitionSet,
   useImageDefUrl,
   useImageDefUrl2,
-  useImageDefinition,
-  useImageDefinitionIds,
 } from '@/src/state/assets'
 import { IndexedDBEffect } from '@/src/state/effects'
-import { Check, ChevronsUpDown, Focus } from 'lucide-react'
-import { MouseEventHandler, Suspense, useState, useRef, useTransition } from 'react'
+import { Focus } from 'lucide-react'
+import { MouseEventHandler, useState, useRef, useTransition, useLayoutEffect } from 'react'
 import { atom, useRecoilState, useRecoilState_TRANSITION_SUPPORT_UNSTABLE, useSetRecoilState } from 'recoil'
-import { TargetIcon } from '@radix-ui/react-icons'
 import { Input } from '@/src/components/ui/input'
 import { Label } from '@/src/components/ui/label'
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/src/components/ui/command'
-import { Popover, PopoverContent, PopoverTrigger } from '@/src/components/ui/popover'
 import { ImageHandler } from '../ImageHandler'
-import { Checkbox } from '../../ui/checkbox'
 
 const ResizablePanelSizes = atom<number[]>({
   key: 'gfxEditorresizablePanelSizes',
@@ -46,12 +37,12 @@ export default function GraphicsContent() {
   const [sizes, setSizes] = useRecoilState_TRANSITION_SUPPORT_UNSTABLE(ResizablePanelSizes)
   const [gfxDefIds, setGfxDefIds] = useGraphicDefinitionIds()
   const listRef = useRef<HTMLDivElement>(null)
-  const handleFocus = (gfxDefId: string) => {
+  const handleFocus = (gfxDefId: string, behavior: ScrollBehavior = 'smooth') => {
     const index = gfxDefIds.findIndex((id) => id === gfxDefId)
     if (index === -1) return
     // use scrollIntoView
     if (!listRef.current) return
-    listRef.current.children[index].scrollIntoView({ behavior: 'smooth', block: 'center' })
+    listRef.current.children[index].scrollIntoView({ behavior, block: 'center' })
   }
   const handleResize: MouseEventHandler<keyof HTMLElementTagNameMap> = (e) => {
     // event trigger
@@ -188,7 +179,7 @@ const selectedGraphicEditorTabState = atom<string>({
 
 type TextureMapType = 'image' | 'bump' | 'irid'
 
-function GraphicEditor({ handleFocus }: { handleFocus: (gfxDefId: string) => void }) {
+function GraphicEditor({ handleFocus }: { handleFocus: (defId: string, behavior?: ScrollBehavior) => void }) {
   const [clonedId, setClonedId] = useState(() => randomId())
   const setClone = useGraphicDefinitionSet(clonedId)
   const [, startTransition] = useTransition()
@@ -228,6 +219,13 @@ function GraphicEditor({ handleFocus }: { handleFocus: (gfxDefId: string) => voi
       setSelected('')
     }
   }
+  const [mountFocus, setMountFocus] = useState<string>('')
+  useLayoutEffect(() => {
+    if (selectedGfxDefId !== mountFocus) {
+      setMountFocus(selectedGfxDefId)
+      handleFocus(selectedGfxDefId, 'instant')
+    }
+  }, [selectedGfxDefId, handleFocus, mountFocus])
   if (!gfxDef || !selectedGfxDefId) return null
   return (
     <div className='relative h-full w-[98%]' key={selectedGfxDefId}>

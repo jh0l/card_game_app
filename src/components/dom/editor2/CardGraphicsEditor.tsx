@@ -12,7 +12,7 @@ import {
 } from '@/src/state/assets'
 import { Button } from '@/src/components/ui/button'
 import { IndexedDBEffect } from '@/src/state/effects'
-import { atom, useRecoilState } from 'recoil'
+import { atom, useRecoilState, useSetRecoilState } from 'recoil'
 import { useState, useTransition } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/src/components/ui/popover'
 import { Check, ChevronsUpDown, ExternalLinkIcon, Menu } from 'lucide-react'
@@ -38,6 +38,12 @@ const selectedGraphicInstIdState = atom<string>({
   key: 'selectedGraphicInstId',
   default: '',
   effects: [IndexedDBEffect('selected_graphic_inst_id', 'v2')],
+})
+
+const selectedGraphicInstIndexState = atom<number>({
+  key: 'selectedGraphicInstIndex',
+  default: -1,
+  effects: [IndexedDBEffect('selected_graphic_inst_index', 'v2')],
 })
 
 export default function CardGraphicsEditor({ cardDefId }: { cardDefId: string }) {
@@ -100,6 +106,7 @@ export default function CardGraphicsEditor({ cardDefId }: { cardDefId: string })
 function SelectCardGraphicInstComboBox({ graphics }: { graphics: GraphicInstanceType[] }) {
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useRecoilState(selectedGraphicInstIdState)
+  const setSelectedInstIndex = useSetRecoilState(selectedGraphicInstIndexState)
   const selectedIndex = graphics.findIndex((x) => x.inst_id === selected)
   const selectedGfx = graphics[selectedIndex]
   const [graphicDef] = useGraphicDefinition(selectedGfx?.graphic_id || '')
@@ -158,6 +165,7 @@ function SelectCardGraphicInstComboBox({ graphics }: { graphics: GraphicInstance
                 graphic={graphic}
                 setValue={() => {
                   setSelected(graphic.inst_id)
+                  setSelectedInstIndex(index)
                   setOpen(false)
                 }}
                 value={selected}
@@ -212,11 +220,16 @@ function GraphicInstCommandItem({
 function EditCardGraphic({ cardDefId }: { cardDefId: string }) {
   const [cardDef, setCardDef] = useCardDefinition(cardDefId)
   const [selectedInstId, setSelectedInstId] = useRecoilState(selectedGraphicInstIdState)
+  const [selectedInstIndex, setSelectedInstIndex] = useRecoilState(selectedGraphicInstIndexState)
   const [, startTransition] = useTransition()
   const [error, setError] = useState('')
   const selectedIndex = cardDef.graphics.findIndex((x) => x.inst_id === selectedInstId)
   if (selectedIndex === -1) {
-    requestAnimationFrame(() => setSelectedInstId(cardDef.graphics[0]?.inst_id || ''))
+    if (selectedInstIndex && cardDef.graphics[selectedInstIndex] !== undefined) {
+      requestAnimationFrame(() => setSelectedInstId(cardDef.graphics[selectedInstIndex].inst_id))
+    } else {
+      requestAnimationFrame(() => setSelectedInstId(cardDef.graphics[0]?.inst_id || ''))
+    }
   }
   const selectedGfx = cardDef.graphics[selectedIndex]
   if (!selectedGfx) {
@@ -236,6 +249,7 @@ function EditCardGraphic({ cardDefId }: { cardDefId: string }) {
     })
   }
   const handleNewIndex = (index: number) => {
+    if (Number.isNaN(index)) return
     if (index < 0 || index >= cardDef.graphics.length)
       return setError(`index must be within 0 and ${cardDef.graphics.length - 1}`)
     else setError('')
@@ -249,6 +263,7 @@ function EditCardGraphic({ cardDefId }: { cardDefId: string }) {
         newX.graphics.splice(index, 0, newGfx)
         return newX
       })
+      setSelectedInstIndex(index)
     })
   }
   const handleEnabled = () => {
@@ -327,7 +342,7 @@ function EditCardGraphic({ cardDefId }: { cardDefId: string }) {
         <span>R.Order -/+</span>
         <span>Index</span>
       </Label>
-      <div className='flex w-full items-center justify-between gap-2'>
+      <div className='flex w-full items-center justify-between gap-2 font-mono'>
         <Input type='number' step={0.05} defaultValue={selectedGfx.width} onChange={handleWidth} />
         <Input type='number' defaultValue={selectedGfx.renderOrderOffset} onChange={handleRenderOrder} />
         <Input type='number' defaultValue={selectedIndex} onChange={handleIndex} />
@@ -417,7 +432,7 @@ function GraphicDefCommandItem({
   const [graphicDef] = useGraphicDefinition(graphic_id)
   return (
     <CommandItem
-      value={graphic_id}
+      value={graphic_id + ' ' + graphicDef.name}
       className='relative'
       onSelect={() => {
         setValue()
@@ -470,7 +485,7 @@ function EditGfxPosition({ position, setPosition }: { position: Vec3; setPositio
     })
   }
   return (
-    <div className='flex w-full gap-2'>
+    <div className='flex w-full gap-2 font-mono'>
       <div className='flex items-center gap-1'>
         <WidthIcon />
         <Input id='0' type='number' step={0.05} defaultValue={position[0]} onChange={handleUpdatePosition} />
@@ -506,7 +521,7 @@ function EditGfxRotation({ rotation, setRotation }: { rotation: Vec3; setRotatio
     })
   }
   return (
-    <div className='flex w-full gap-2'>
+    <div className='flex w-full gap-2 font-mono'>
       <div className='flex items-center gap-1'>
         <RowSpacingIcon />
         <Input

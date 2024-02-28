@@ -182,7 +182,7 @@ const imageDefinitionIndexed = atomFamily<ImageDefinitionType, string>({
 })
 export const useImageDefinition = (id: string) => useRecoilState(imageDefinitionIndexed(id))
 export const useImageDefinitionSet = (id: string) => useSetRecoilState(imageDefinitionIndexed(id))
-
+export const useImageDefinitionReset = (id: string) => useResetRecoilState(imageDefinitionIndexed(id))
 export interface ImageDefinitionUrl extends ImageDefinitionType {
   url: string
   width: number
@@ -250,4 +250,10 @@ export const selectedGraphicDefIdState = atom<string>({
   key: 'selectedGraphicDefId',
   default: '',
   effects: [IndexedDBEffect('selectedGfxDefId', '')],
+})
+
+export const selectedImageDefIdState = atom<string>({
+  key: 'selectedImageDefId',
+  default: '',
+  effects: [IndexedDBEffect('selectedImageDefId', '')],
 })

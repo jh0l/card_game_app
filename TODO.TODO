@@ -6,19 +6,34 @@ TODO:
         [ ] delete an image
         [ ] alias an image definition to another image definition?
         [ ] upload images in bulk
-    [ ] create card definition template from slctd card def dropdown
-        [ ] spawn dialog form with card definition based off current card
-             definition selected
-        [ ] form allows changing values to different values, and setting values
-            to '' (empty string)
-    [ ] create a card definition from template using chevron side button
-        connected to "NEW CARD DEFINITION" button
-    [ ] apply a template to an existing card definition?
-    [ ] create card definition dialog form?
+
+    [ ] create card definition template dialog form based on 'Set Card Type' combobox
     [ ] edit card definition templates
-        [ ] change template values
-        [ ] delete templates
-    [ ] editing template values propogate changes to card definitions
-         that use that template?
+        [ ] add a card type template
+        [ ] edit card type template name
+        [ ] add/delete/change card type template values
+            [ ] add/delete/change the (text) properties of the card type
+                [ ] the name of the property
+                [ ] enableable/disableable default values for (empty input means dont set value or if none on the target set to '')
+                    [ ] position [each value]
+                    [ ] rotation [each value]
+                    [ ] text alignment [each value]
+                    [ ] size
+                    [ ] width
+                    [ ] scale
+                    [ ] R.Order -/+
+            [ ] add/delete/change the graphics of the card type
+                [ ] the label of the graphic
+                [ ] the graphic definition of the property
+                    will need to create the graphic definition if it doesn't exist on the client????
+                [ ] enableable/disableable default values for
+                    [ ] position (each value)
+                    [ ] rotation (each value)
+                    [ ] scale, R.Order -/+, Index (make implicit?)
+                    
+        [ ] delete card type templates
+        [ ] apply template values to a selection of card definitions
+        
+    [ ] when card property deviates from template value, show difference in popover somehow? 
          
-TYPO
+create card from text

@@ -227,7 +227,7 @@ function CardGraphicPreview({ graphics }: { graphics: GraphicInstanceType[] }) {
 function GraphicInstancePreview({ graphic }: { graphic: GraphicInstanceType }) {
   const [graphicDef] = useGraphicDefinition(graphic.graphic_id)
   const imageDef = useImageDefUrl(graphicDef.image)
-  return <img src={imageDef.url} alt=' ' className='h-8 object-contain pr-0.5' />
+  return <img src={imageDef.url} alt=' ' className='max-h-8 max-w-8 object-contain pr-0.5' />
 }
 
 function GraphicInstanceEditor({
@@ -605,7 +605,7 @@ function CardDefinition({
 
 function ImagePreview({ image }: { image?: ImageDefinitionIdType }) {
   const imageDef = useImageDefUrl(image || { image_id: '' })
-  return <img src={imageDef.url} alt=' ' className='h-8 object-contain pr-0.5' />
+  return <img src={imageDef.url} alt=' ' className='max-h-8 max-w-8 object-contain pr-0.5' />
 }
 
 function GraphicDefinitionList() {

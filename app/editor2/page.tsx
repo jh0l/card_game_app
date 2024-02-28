@@ -10,6 +10,7 @@ import GraphicsContent from '@/src/components/dom/editor2/GraphicsEditor'
 import { HandContent, CardsContent } from '@/src/components/dom/editor2/CardTabContent'
 import { atom, useRecoilState, useRecoilState_TRANSITION_SUPPORT_UNSTABLE } from 'recoil'
 import { IndexedDBEffect } from '@/src/state/effects'
+import ImagesTabContent from '@/src/components/dom/editor2/ImagesTabContent'
 const GameClient = dynamic(() => import('@/src/components/GameClient'), { ssr: false, loading: SpinnerLight })
 
 export default function Page() {
@@ -96,6 +97,9 @@ function EditorContent({ hide }: { hide?: boolean }) {
       </TabsContent>
       <TabsContent value='graphics' className='h-full'>
         <GraphicsContent />
+      </TabsContent>
+      <TabsContent value='images' className='h-full'>
+        <ImagesTabContent />
       </TabsContent>
     </Tabs>
   )

@@ -22,7 +22,7 @@ import {
 } from '@/src/state/assets'
 import { IndexedDBEffect } from '@/src/state/effects'
 import { Check, ChevronsUpDown, Focus, Menu } from 'lucide-react'
-import { MouseEventHandler, Suspense, useState, useRef, useTransition } from 'react'
+import { MouseEventHandler, Suspense, useState, useRef, useTransition, useLayoutEffect } from 'react'
 import { atom, useRecoilState, useRecoilState_TRANSITION_SUPPORT_UNSTABLE, useSetRecoilState } from 'recoil'
 import { CardPropEditor } from './CardPropEditor'
 import CardGraphicsEditor from '@/src/components/dom/editor2/CardGraphicsEditor'
@@ -134,7 +134,7 @@ function CardDefCommandItem({ id, setValue, value }: { id: string; setValue: (va
   const [cardDef] = useCardDefinition(id)
   return (
     <CommandItem
-      value={id}
+      value={id + ' ' + cardDef.name}
       onSelect={() => {
         setValue(id)
       }}
@@ -160,13 +160,13 @@ export function CardsContent() {
   const [sizes, setSizes] = useRecoilState_TRANSITION_SUPPORT_UNSTABLE(ResizablePanelSizes)
   const [cardDefinitionIds, setCardDefIds] = useCardDefinitionList()
   const listRef = useRef<HTMLDivElement>(null)
-  const handleFocus = (cardDefId: string) => {
+  const handleFocus = (cardDefId: string, behavior: ScrollBehavior = 'smooth') => {
     // get CardDefinitionListItem index
     const index = cardDefinitionIds.findIndex((id) => id === cardDefId)
     if (index === -1) return
     // use scrollIntoView
     if (!listRef.current) return
-    listRef.current.children[index].scrollIntoView({ behavior: 'smooth', block: 'center' })
+    listRef.current.children[index].scrollIntoView({ behavior, block: 'center' })
   }
   const handleResize: MouseEventHandler<keyof HTMLElementTagNameMap> = (e) => {
     // event trigger
@@ -269,7 +269,11 @@ function GraphicInstancePreview({ graphic }: { graphic: GraphicInstanceType }) {
   const [graphicDef] = useGraphicDefinition(graphic.graphic_id)
   const imageDef = useImageDefUrl(graphicDef.image)
   return (
-    <img src={imageDef.url} alt='.' className='flex h-min max-h-8 items-center justify-center object-contain pr-0.5' />
+    <img
+      src={imageDef.url}
+      alt='.'
+      className='flex h-min max-h-8 max-w-8 items-center justify-center object-contain pr-0.5'
+    />
   )
 }
 
@@ -300,7 +304,7 @@ const selectedCardEditorTabState = atom<string>({
   default: 'props',
   effects: [IndexedDBEffect('selectedCardEditorTab', '')],
 })
-function CardEditor({ handleFocus }: { handleFocus: (cardDefId: string) => void }) {
+function CardEditor({ handleFocus }: { handleFocus: (defId: string, behavior?: ScrollBehavior) => void }) {
   const [cloneId, setCloneId] = useState(() => randomId())
   const setClone = useSetCardDefinition(cloneId)
   const setIds = useCardDefinitionsListSet()
@@ -338,6 +342,13 @@ function CardEditor({ handleFocus }: { handleFocus: (cardDefId: string) => void 
       setSelected('')
     }
   }
+  const [mountFocus, setMountFocus] = useState<string>('')
+  useLayoutEffect(() => {
+    if (selectedCardDefId !== mountFocus) {
+      setMountFocus(selectedCardDefId)
+      handleFocus(selectedCardDefId, 'instant')
+    }
+  }, [selectedCardDefId, handleFocus, mountFocus])
   if (!selectedCardDefId) return null
   return (
     <div className='relative h-full max-w-xs' key={selectedCardDefId}>

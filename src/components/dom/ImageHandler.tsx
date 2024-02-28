@@ -16,6 +16,7 @@ import {
   randomId,
   useImageDefUrl,
   useImageDefUrl2,
+  useImageDefinition,
   useImageDefinitionIds,
   useImageDefinitionIdsList,
   useImageDefinitionSet,
@@ -95,8 +96,8 @@ export function ImageHandler({
   // }, [imageDefIds])
   const [urlInput, setUrlInput] = React.useState('')
   return (
-    <div className='flex flex-col gap-2'>
-      <div className='flex items-center justify-between gap-1 overflow-hidden'>
+    <div className='flex flex-col'>
+      <div className='flex items-center justify-between gap-1 overflow-hidden pb-2'>
         <ImageDefCombobox value={image} setValue={setImage} />
         <Button
           size='sm'
@@ -108,24 +109,12 @@ export function ImageHandler({
         </Button>
       </div>
       <div
-        className={cn('grid items-center gap-2 rounded border bg-gray-500/10 p-2 shadow', {
+        className={cn('grid items-center gap-2 rounded border bg-gray-500/10 shadow', {
           'invisible h-0': !newId,
+          'p-2': newId,
         })}
       >
         <Label>Create New Image Definition</Label>
-        {/* <Label htmlFor='image'>Source</Label>
-        <Select onValueChange={(e) => setNewType(e === 'url' ? e : 'db')}>
-          <SelectTrigger>
-            <SelectValue placeholder='Local File' />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value='db'>From File</SelectItem>
-            <SelectItem value='url'>From URL</SelectItem>
-          </SelectContent>
-        </Select> */}
-        {/* <Label size='2xs' htmlFor='image_url'>
-          Upload Button
-        </Label> */}
         <div
           className={cn('relative flex h-[52px] items-center justify-center rounded-xl', {
             'invisible -my-5 h-0': newType !== 'db',
@@ -137,10 +126,6 @@ export function ImageHandler({
             type='file'
             onChange={handleFileChange}
           />
-          {/* <div className='pointer-events-none invisible absolute right-2 top-1/2 flex cursor-pointer flex-col justify-center rounded-xl bg-none px-10 md:visible'>
-            <UploadIcon className='size-4' />
-          </div> */}
-          {/* displays file name */}
         </div>
 
         {newImageObj?.file?.name && (
@@ -199,30 +184,32 @@ export function ImageHandler({
   )
 }
 
-function ViewImage({ image_id }: { image_id: string }) {
+export function ViewImage({ image_id }: { image_id: string }) {
   const img = useImageDefUrl2(image_id)
   const src = img.url
   return (
     <div className='relative flex flex-col items-center justify-between gap-4 p-3'>
       <Label size='2xs'>Current Image</Label>
-      <div className='relative flex items-center gap-2'>
+      <div className='grid w-full grid-cols-3 flex-wrap justify-between gap-4 px-2 font-mono text-xs'>
+        <div>w: {img.width}px</div>
+        <div>h: {img.height}px</div>
+        <div>{img.size_KB} kB</div>
+      </div>
+      <div className='relative flex w-full items-center justify-center gap-2'>
         <div className='absolute inset-0 z-0 bg-checkered bg-size-md opacity-10'></div>
-        <a href={src} target='_blank' rel='noreferrer' className='z-10'>
+        <a
+          href={src}
+          target='_blank'
+          rel='noreferrer'
+          className='z-10 flex h-32 items-center justify-center overflow-hidden p-2'
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={src} alt='new image' className='object-contain shadow' />
+          <img src={src} alt='current image' className='max-h-32 object-contain' />
         </a>
         {/* green crosshair to indicate center */}
-        <div className='absolute inset-0 z-20 flex items-center justify-center gap-2'>
+        <div className='pointer-events-none absolute inset-0 z-20 flex items-center justify-center gap-2'>
           <div className='absolute h-3 w-0.5 rounded bg-green-500'></div>
           <div className='absolute h-0.5 w-3 rounded bg-green-500'></div>
-        </div>
-      </div>
-      <div className='flex w-full justify-between'>
-        <div className='w-1/2 px-2 font-mono text-xs'>
-          SIZE
-          <div>w: {img.width}px</div>
-          <div>h: {img.height}px</div>
-          <div>{img.size_KB} kB</div>
         </div>
       </div>
     </div>
@@ -367,7 +354,9 @@ function ImageDefCombobox({
   setValue: (value: ImageDefinitionIdType) => void
 }) {
   const [open, setOpen] = React.useState(false)
+  const [imgDef] = useImageDefinition(value?.image_id || '')
   const imageDefIds = useImageDefinitionIdsList()
+  console.log(imgDef.name + imgDef.id)
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -434,7 +423,7 @@ function ImageDefSelectedItem({ image_id }: { image_id: string }) {
     <>
       {imageDefValue.url ? (
         <div className='flex w-[90%] items-center justify-between gap-1'>
-          <div className='w-[90%] overflow-hidden text-left text-xs'>
+          <div className=' w-[90%] overflow-hidden text-left text-xs'>
             {imageDefValue.name || <span className='italic text-red-500/70'>image has no name</span>}
           </div>
           <a
@@ -460,7 +449,7 @@ function ImageDefCommandItem({ image_id, setValue, value }: { image_id: string; 
   const imageDef = useImageDefUrl({ image_id })
   return (
     <CommandItem
-      value={image_id}
+      value={imageDef.name}
       onSelect={() => {
         setValue()
       }}
@@ -468,7 +457,9 @@ function ImageDefCommandItem({ image_id, setValue, value }: { image_id: string; 
       <div className='flex w-full justify-start gap-2'>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={imageDef.url} className='size-12 object-contain' alt='image definition image' />
-        {imageDef.name || <span className='italic text-red-500/70'>image has no name</span>}
+        <div style={{ direction: 'rtl' }}>
+          {imageDef.name || <span className='italic text-red-500/70'>image has no name</span>}
+        </div>
         <Check className={cn('mr-2 h-4 w-4', value === image_id ? 'opacity-100' : 'opacity-0')} />
       </div>
     </CommandItem>

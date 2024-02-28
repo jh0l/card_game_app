@@ -35,12 +35,17 @@ import { Label } from '@/src/components/ui/label'
 import { Check, ChevronsUpDown, Menu } from 'lucide-react'
 import { MouseEventHandler, useState, useTransition } from 'react'
 import { atom, useRecoilState, useResetRecoilState } from 'recoil'
+import { Dialog, DialogContent, DialogTrigger } from '../../ui/dialog'
 
 export function CardPropEditor({ cardDefId }: { cardDefId: string }) {
   const [cardDef] = useCardDefinition(cardDefId)
   return (
     <div className='flex flex-col gap-2 px-1'>
-      {cardDef.cardType === undefined && <CardTypeComboBox cardDefId={cardDefId} />}
+      {cardDef.cardType === undefined && (
+        <div className='flex'>
+          <CardTypeComboBox cardDefId={cardDefId} />
+        </div>
+      )}
       {cardDef.cardType && <EditCardType cardDefId={cardDefId} />}
       {cardDef.cardType && (
         <>
@@ -57,6 +62,7 @@ export function CardPropEditor({ cardDefId }: { cardDefId: string }) {
     </div>
   )
 }
+
 function EditCardTypePopover({ cardDefId }: { cardDefId: string }) {
   const [open, setOpen] = useState(false)
   return (
@@ -172,11 +178,11 @@ function CardTypeComboBox({ cardDefId }: { cardDefId: string }) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant='outline' role='combobox' aria-expanded={open} className='w-full justify-between' size='xs'>
+        <Button variant='outline' role='combobox' aria-expanded={open} className='w-full justify-between'>
           {cardDef.cardType ? (
             <div className='flex w-1/2 items-center justify-start gap-6'>{cardDef.cardType}</div>
           ) : (
-            <div className='w-full rounded bg-primary/60'>Set Card Type...</div>
+            <div className='w-full rounded bg-primary/50 p-1'>Set Card Type...</div>
           )}
           <ChevronsUpDown className='ml-2 size-4 shrink-0 opacity-50' />
         </Button>
@@ -195,11 +201,42 @@ function CardTypeComboBox({ cardDefId }: { cardDefId: string }) {
               </CommandItem>
             ))}
           </CommandGroup>
+          <CommandGroup>
+            <CommandItem>
+              <EditCardPropDialog />
+            </CommandItem>
+          </CommandGroup>
         </Command>
       </PopoverContent>
     </Popover>
   )
 }
+
+function EditCardPropDialog() {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button size='sm' variant='secondary'>
+          Edit Card Types
+        </Button>
+      </DialogTrigger>
+      <DialogContent className='max-h-screen max-w-md overflow-y-scroll'>
+        <div className='flex flex-col gap-2'>
+          <div>Card Types</div>
+          <div className='flex flex-col gap-2'>
+            {cardTypes.map((cardType) => (
+              <div key={cardType} className='flex items-center justify-between gap-2'>
+                <div>{cardType}</div>
+                <EditCardTypePopover cardDefId={cardType} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 const selectedPropIdState = atom<string>({
   key: 'selected_prop_id',
   default: undefined,
@@ -350,7 +387,7 @@ function EditPropPosition({ prop, cardDefId }: { prop: PropInstanceType; cardDef
       <Label size='2xs' htmlFor='0'>
         position
       </Label>
-      <div className='flex w-full gap-2'>
+      <div className='flex w-full gap-2 font-mono'>
         <div className='flex items-center gap-1'>
           <WidthIcon />
           <Input id='0' type='number' step={0.05} defaultValue={prop.position[0]} onChange={handleUpdatePosition} />
@@ -409,7 +446,7 @@ function EditPropAnchor({ prop, cardDefId }: { prop: PropInstanceType; cardDefId
         <span className='w-1/3 text-center'>Horizontal</span>
         <span className='w-1/3 text-center'>Size</span>
       </Label>
-      <div className='flex w-full items-center justify-between gap-2'>
+      <div className='flex w-full items-center justify-between gap-2 font-mono'>
         <AnchorButtons prop={prop} onChange={handleAnchorChange} />
         <Input
           type='number'
@@ -424,7 +461,7 @@ function EditPropAnchor({ prop, cardDefId }: { prop: PropInstanceType; cardDefId
         <span className='w-1/3 text-center'>Scale</span>
         <span className='w-1/3 text-center'>R.Order -/+</span>
       </Label>
-      <div className='flex w-full items-center justify-between gap-2'>
+      <div className='flex w-full items-center justify-between gap-2 font-mono'>
         <Input type='number' step={0.05} defaultValue={prop.width} onChange={handleNumChange('width')} />
         <Input type='number' step={0.05} defaultValue={prop.x_scale} onChange={handleNumChange('x_scale')} />
         <Input
