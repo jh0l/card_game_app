@@ -73,8 +73,19 @@ function EditCardTypePopover({ cardDefId }: { cardDefId: string }) {
         </Button>
       </PopoverTrigger>
       <PopoverContent className='w-full min-w-[200px] max-w-xs'>
-        <div className='text-xs'>Change Card Type</div>
-        <CardTypeComboBox cardDefId={cardDefId} />
+        <Command>
+          <CommandGroup>
+            <CommandItem>
+              <CardTypeComboBox cardDefId={cardDefId} />
+            </CommandItem>
+          </CommandGroup>
+          <CommandGroup>
+            <CommandItem>
+              <EditCardPropDialog />
+            </CommandItem>
+          </CommandGroup>
+        </Command>
+        {/* <Label size='xs'>Change Card Type</Label> */}
       </PopoverContent>
     </Popover>
   )
@@ -200,11 +211,6 @@ function CardTypeComboBox({ cardDefId }: { cardDefId: string }) {
                 </div>
               </CommandItem>
             ))}
-          </CommandGroup>
-          <CommandGroup>
-            <CommandItem>
-              <EditCardPropDialog />
-            </CommandItem>
           </CommandGroup>
         </Command>
       </PopoverContent>

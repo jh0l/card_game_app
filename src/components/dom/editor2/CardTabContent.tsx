@@ -204,8 +204,6 @@ export function CardsContent() {
     setNewCardDefinition({
       id: newCardId,
       name: '',
-      label: '',
-      description: '',
       graphics: [],
       props: {},
     })

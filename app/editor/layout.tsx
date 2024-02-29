@@ -1,4 +1,4 @@
-import Head from '@/app/editor2/head'
+import Head from '@/app/editor/head'
 
 export default function Layout({ children }) {
   return (

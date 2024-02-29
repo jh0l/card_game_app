@@ -82,17 +82,13 @@ export const CARD_ATTRIBUTE_VALUE_TYPES: Record<string, 'string' | 'number' | 't
 }
 export interface CardDefinitionType {
   id: string
-  description: string
-  label: string
   name: string
   graphics: GraphicInstanceType[]
   props?: Record<string, PropInstanceType>
   primaryGraphic?: number
   cardType?: CardType
-  health?: string
-  attack?: string
-  defence?: string
 }
+
 const cardDefinition = atomFamily<CardDefinitionType, string>({
   key: 'cardDefinition',
   default: {
@@ -100,8 +96,6 @@ const cardDefinition = atomFamily<CardDefinitionType, string>({
     name: '',
     graphics: [],
     props: {},
-    label: '',
-    description: '',
   },
   effects: (key) => [IndexedDBEffect('card_definition', key)],
 })
@@ -257,3 +251,26 @@ export const selectedImageDefIdState = atom<string>({
   default: '',
   effects: [IndexedDBEffect('selectedImageDefId', '')],
 })
+
+// card definition templates
+export const cardDefinitionTemplates = atom<string[]>({
+  key: 'cardDefinitionTemplates',
+  default: [],
+  effects: [IndexedDBEffect('card_definition_templates', '')],
+})
+
+export const useCardDefinitionTemplates = () => useRecoilState(cardDefinitionTemplates)
+export const useCardDefinitionTemplatesSet = () => useSetRecoilState(cardDefinitionTemplates)
+
+export const CardDefinitionTemplateState = atomFamily<Partial<CardDefinitionType>, string>({
+  key: 'CardDefinitionTemplate',
+  default: {
+    name: '',
+    graphics: [],
+    props: {},
+  },
+  effects: (key) => [IndexedDBEffect('card_definition_template', key)],
+})
+export const useCardDefinitionTemplate = (id: string) =>
+  useRecoilState_TRANSITION_SUPPORT_UNSTABLE(CardDefinitionTemplateState(id))
+export const useSetCardDefinitionTemplate = (id: string) => useSetRecoilState(CardDefinitionTemplateState(id))
