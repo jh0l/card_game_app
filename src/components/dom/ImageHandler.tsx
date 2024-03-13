@@ -233,6 +233,48 @@ interface ResizeImageProps {
   setNewImageObj: (f: { src: string; file?: File }) => void
 }
 
+export async function imgToResizedFile(
+  image: ResizeImageProps['image'],
+  { width, height }: { width: number; height: number },
+) {
+  try {
+    if (!image) return
+    // use sharp api to resize image
+    const formData = new FormData()
+    // if file does not exist, create file
+    const blob = await fetch(image.src).then((r) => r.blob())
+    formData.append('file', blob, image.src.split('/').pop() || 'untitled')
+
+    // get minimum of image dimensions then get ratio of w/h, then so minimum is 512, then get new dimensions
+    const min = Math.min(width, height)
+    const ratio = width / height
+    const newWidth = min > 512 ? 512 : min
+    const newHeight = min > 512 ? 512 / ratio : min
+    formData.append('width', newWidth.toString())
+    formData.append('height', newHeight.toString())
+    const res = await fetch('/api/resize', {
+      method: 'POST',
+      body: formData,
+    })
+    if (!res.ok) {
+      alert('Error resizing image')
+      return
+    }
+    const resBlob = await res.blob()
+    let newFileName = 'untitled'
+    if (image.file && 'file' in image.file && image.file.file) {
+      newFileName = image.file.file.name
+    } else if (image.src) {
+      newFileName = image.src.split('/').pop() || 'untitled'
+    }
+    return { src: URL.createObjectURL(resBlob), file: new File([resBlob], newFileName) }
+  } catch (e) {
+    const msg = 'message' in e ? e.message : 'unknown error'
+    alert('Error resizing image\n' + msg)
+    console.error(e)
+  }
+}
+
 function ImageResizer({ image, setNewImageObj }: ResizeImageProps) {
   const [img, setDomImage] = React.useState<{ o: HTMLImageElement; size: number }>({ o: new Image(), size: 0 })
   React.useEffect(() => {
@@ -255,41 +297,8 @@ function ImageResizer({ image, setNewImageObj }: ResizeImageProps) {
   const [loading, setLoading] = React.useState(false)
   const handleResizeImageRequest = async () => {
     setLoading(true)
-    try {
-      if (!image) return
-      // use sharp api to resize image
-      const formData = new FormData()
-      // if file does not exist, create file
-      const blob = await fetch(image.src).then((r) => r.blob())
-      formData.append('file', blob, image.src.split('/').pop() || 'untitled')
-
-      // get minimum of image dimensions then get ratio of w/h, then so minimum is 512, then get new dimensions
-      const min = Math.min(img.o.width, img.o.height)
-      const ratio = img.o.width / img.o.height
-      const newWidth = min > 512 ? 512 : min
-      const newHeight = min > 512 ? 512 / ratio : min
-      formData.append('width', newWidth.toString())
-      formData.append('height', newHeight.toString())
-      const res = await fetch('/api/resize', {
-        method: 'POST',
-        body: formData,
-      })
-      if (!res.ok) {
-        alert('Error resizing image')
-        return
-      }
-      const resBlob = await res.blob()
-      let newFileName = 'untitled'
-      if (image.file && 'file' in image.file && image.file.file) {
-        newFileName = image.file.file.name
-      } else if (image.src) {
-        newFileName = image.src.split('/').pop() || 'untitled'
-      }
-      setNewImageObj({ src: URL.createObjectURL(resBlob), file: new File([resBlob], newFileName) })
-    } catch (e) {
-      alert('Error resizing image')
-      console.error(e)
-    }
+    const res = await imgToResizedFile(image, img.o)
+    res && setNewImageObj(res)
     setLoading(false)
   }
   if (!image) {

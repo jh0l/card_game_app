@@ -3,7 +3,7 @@
 import { Spinner } from '@/src/components/dom/Spinner'
 import { Button } from '@/src/components/ui/button'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/src/components/ui/resizable'
-import { ScrollArea } from '@/src/components/ui/scroll-area'
+import { ScrollArea, ScrollBar } from '@/src/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/src/components/ui/tabs'
 import { cn } from '@/src/lib/utils'
 import {
@@ -32,6 +32,7 @@ import { Label } from '@/src/components/ui/label'
 import { useHandCardsList, useHandCardsListSet, useTableCardListSet } from '@/src/state/room'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/src/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/src/components/ui/popover'
+import { useCreateDefaultCards } from '@/src/state/assets/defaults'
 
 export function HandContent() {
   const [handIds, setHandCardIds] = useHandCardsList()
@@ -41,10 +42,12 @@ export function HandContent() {
   return (
     <div className='flex w-full flex-col gap-1 p-2'>
       <CardDefComboBox value={''} setValue={handleAddCard} />
-
-      {handIds.map((id, i) => (
-        <CardHandInstance id={id.def_id} index={i} key={id.inst_id} />
-      ))}
+      <ScrollArea className='h-[80svh]'>
+        {handIds.map((id, i) => (
+          <CardHandInstance id={id.def_id} index={i} key={id.inst_id} />
+        ))}
+        <LoadDefaultCards />
+      </ScrollArea>
     </div>
   )
 }
@@ -76,6 +79,18 @@ function CardHandInstance({ id, index }: { id: string; index: number }) {
     </div>
   )
 }
+
+function LoadDefaultCards() {
+  const create = useCreateDefaultCards()
+  const [cardIds] = useCardDefinitionList()
+  if (cardIds.length > 0) return null
+  return (
+    <Button size='sm' className='w-full text-xs' variant='outline' onClick={create}>
+      load default cards
+    </Button>
+  )
+}
+
 function CardDefComboBox({ value, setValue }: { value?: string; setValue: (value: string) => void }) {
   const [open, setOpen] = useState(false)
   const [cardDefIds] = useCardDefinitionList()
@@ -313,7 +328,10 @@ function CardEditor({ handleFocus }: { handleFocus: (defId: string, behavior?: S
   const reset = useResetCardDefinition(selectedCardDefId)
   const [highlight, setHighlight] = useRecoilState(highlightSelectedCardDefIdState)
   const [tabValue, setTabValue] = useRecoilState(selectedCardEditorTabState)
-  const handleSetHighlight = () => setHighlight((x) => !x)
+  const handleSetHighlight = () => {
+    debugger
+    setHighlight((x) => !x)
+  }
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // update cardDef name
     setCardDef((prev) => ({ ...prev, name: e.target.value }))

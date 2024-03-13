@@ -83,7 +83,7 @@ export const MAX_VISIBLE_CARDS = 7
 //     return String(i + 1)
 //   })
 
-const handCardsList = atom<CardInstanceIdType[]>({
+export const handCardsList = atom<CardInstanceIdType[]>({
   key: 'handsCardsList',
   default: [],
   effects: [IndexedDBEffect('handCardIds', 'v3')],

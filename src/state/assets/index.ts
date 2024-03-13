@@ -10,7 +10,7 @@ import {
   useSetRecoilState,
 } from 'recoil'
 import { IndexedDBEffect, localStorageEffect } from '@/src/state/effects'
-import { Vec3 } from '../lib/types'
+import { Vec3 } from '../../lib/types'
 
 export function randomId() {
   return Date.now().toString(36) + Math.random().toString(36)
@@ -64,7 +64,7 @@ export interface PropInstanceType {
   enabled: boolean
 }
 
-// TODO - default text positions for different properties
+// TODO - atomFamily for templates to set default text positions for different properties
 export type CardType = 'monster' | 'item' | 'trap' | 'counter'
 export type CardTypeProp = 'health' | 'attack' | 'defence' | 'description' | 'name'
 export const CARD_TYPE_PROPERTIES: Record<CardType, CardTypeProp[]> = {
@@ -75,6 +75,7 @@ export const CARD_TYPE_PROPERTIES: Record<CardType, CardTypeProp[]> = {
 }
 export const CARD_ATTRIBUTE_VALUE_TYPES: Record<string, 'string' | 'number' | 'textarea'> = {
   health: 'string',
+
   attack: 'string',
   defence: 'string',
   description: 'textarea',
@@ -89,7 +90,7 @@ export interface CardDefinitionType {
   cardType?: CardType
 }
 
-const cardDefinition = atomFamily<CardDefinitionType, string>({
+export const cardDefinitionState = atomFamily<CardDefinitionType, string>({
   key: 'cardDefinition',
   default: {
     id: '',
@@ -99,11 +100,12 @@ const cardDefinition = atomFamily<CardDefinitionType, string>({
   },
   effects: (key) => [IndexedDBEffect('card_definition', key)],
 })
-export const useCardDefinition = (id: string) => useRecoilState_TRANSITION_SUPPORT_UNSTABLE(cardDefinition(id))
-export const useSetCardDefinition = (id: string) => useSetRecoilState(cardDefinition(id))
-export const useResetCardDefinition = (id: string) => useResetRecoilState(cardDefinition(id))
+export const useCardDefinition = (id: string) => useRecoilState_TRANSITION_SUPPORT_UNSTABLE(cardDefinitionState(id))
+export const useSetCardDefinition = (id: string) => useSetRecoilState(cardDefinitionState(id))
+export const useResetCardDefinition = (id: string) => useResetRecoilState(cardDefinitionState(id))
 /** GRAPHIC STATE */
 export interface GraphicDefinitionType {
+  id: string
   name: string
   image: ImageDefinitionIdType
   bumpMap: ImageDefinitionIdType
@@ -112,9 +114,10 @@ export interface GraphicDefinitionType {
   height: number
   available?: number
 }
-const graphicDefinition = atomFamily<GraphicDefinitionType, string>({
+export const graphicDefinition = atomFamily<GraphicDefinitionType, string>({
   key: 'graphicDefinition',
   default: {
+    id: '',
     name: '',
     image: { image_id: '' },
     bumpMap: { image_id: '' },
@@ -128,7 +131,7 @@ export const useGraphicDefinition = (id: string) => useRecoilState(graphicDefini
 export const useGraphicDefinitionSet = (id: string) => useSetRecoilState(graphicDefinition(id))
 export const useGraphicDefinitionReset = (id: string) => useResetRecoilState(graphicDefinition(id))
 
-const graphicDefinitionIds = atom<string[]>({
+export const graphicDefinitionIds = atom<string[]>({
   key: 'graphicDefinitionIds',
   default: [],
   effects: [localStorageEffect('graphic_definition_ids')],
@@ -139,7 +142,7 @@ export const useGraphicDefinitionIdsListSet = () => useSetRecoilState(graphicDef
 
 /** IMAGE STATE */
 
-const imageDefinitionIds = atom<string[]>({
+export const imageDefinitionIds = atom<string[]>({
   key: 'image_ids',
   default: [],
   effects: [IndexedDBEffect('image_definition_ids', '')],
@@ -157,7 +160,7 @@ export interface BlobFile {
   type: string
 }
 
-interface ImageDefinitionType {
+export interface ImageDefinitionType {
   id: string
   name: string
   file?: BlobFile
@@ -166,7 +169,7 @@ interface ImageDefinitionType {
   height?: number
 }
 
-const imageDefinitionIndexed = atomFamily<ImageDefinitionType, string>({
+export const imageDefinitionIndexed = atomFamily<ImageDefinitionType, string>({
   key: 'image_definition_index',
   default: {
     id: '',

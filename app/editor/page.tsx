@@ -8,7 +8,7 @@ import dynamic from 'next/dynamic'
 import { useEffect, useState, useTransition } from 'react'
 import GraphicsContent from '@/src/components/dom/editor2/GraphicsEditor'
 import { HandContent, CardsContent } from '@/src/components/dom/editor2/CardTabContent'
-import { atom, useRecoilState, useRecoilState_TRANSITION_SUPPORT_UNSTABLE } from 'recoil'
+import { atom, useRecoilState_TRANSITION_SUPPORT_UNSTABLE } from 'recoil'
 import { IndexedDBEffect } from '@/src/state/effects'
 import ImagesTabContent from '@/src/components/dom/editor2/ImagesTabContent'
 const GameClient = dynamic(() => import('@/src/components/GameClient'), { ssr: false, loading: SpinnerLight })

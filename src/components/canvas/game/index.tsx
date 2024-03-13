@@ -7,6 +7,8 @@ import Players from '@/src/components/canvas/game/Players'
 import { Bvh, StatsGl } from '@react-three/drei'
 import SpinnerLight from '@/src/components/dom/SpinnerLight'
 import HtmlPortal from '@/src/helpers/components/HtmlPortal'
+import { statsGlAtom } from '@/src/components/dom/NavBar'
+import { useRecoilValue } from 'recoil'
 const PlayArea = dynamic(() => import('@/src/components/canvas/game/PlayArea'), {
   ssr: false,
   loading: () => (
@@ -18,9 +20,10 @@ const PlayArea = dynamic(() => import('@/src/components/canvas/game/PlayArea'), 
 //*/
 
 export function GameView() {
+  const showStats = useRecoilValue(statsGlAtom)
   return (
     <View className='mx-auto size-full max-w-screen-lg bg-black opacity-[0.14]'>
-      <StatsGl horizontal={false} logsPerSecond={5} className='translate-y-[50px]' />
+      {showStats && <StatsGl horizontal={false} logsPerSecond={5} className='translate-y-[50px]' />}
       <Common />
       <Players />
       <Bvh firstHitOnly>

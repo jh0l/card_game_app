@@ -75,6 +75,7 @@ export default function GraphicsContent() {
   const setNewGfxDef = useGraphicDefinitionSet(newGfxDefId)
   const handleNewGraphicDefinition = () => {
     setNewGfxDef({
+      id: newGfxDefId,
       name: '',
       image: { image_id: '' },
       bumpMap: { image_id: '' },

@@ -16,7 +16,8 @@ import Image from 'next/image'
 import { Button } from '@/src/components/ui/button'
 import PersonIcon from '@/src/lib/icons/PersonIcon'
 import DiscordLogoIcon from '@/src/lib/icons/DiscordLogoIcon'
-import GameBar from './GameBar'
+import { atom, useRecoilValue, useSetRecoilState } from 'recoil'
+import { localStorageEffect } from '@/src/state/effects'
 
 const NEXTAUTH_URL = process.env.NEXT_PUBLIC_NEXTAUTH_URL || ''
 
@@ -27,7 +28,16 @@ type NavComponent = {
   key: string
 }
 
+export const statsGlAtom = atom<boolean>({
+  key: 'stas_gl',
+  default: false,
+  effects: [localStorageEffect('stats_gl')],
+})
+
 export default function NavBar() {
+  const showStats = useRecoilValue(statsGlAtom)
+
+  const setStatsGl = useSetRecoilState(statsGlAtom)
   const session = useSession()
   const menuSymbol = useMemo(() => {
     if (session.status === 'authenticated') {
@@ -97,11 +107,26 @@ export default function NavBar() {
           <NavigationMenuTrigger>{menuSymbol}</NavigationMenuTrigger>
           <NavigationMenuContent>
             <ul className='grid w-screen max-w-64 p-1'>
+              <ListItem key='home' heading='home' href='/' />
+
+              <ListItem
+                key='perf'
+                heading='Toggle Performance Overlay'
+                onClick={() => {
+                  setStatsGl((x) => !x)
+                }}
+              >
+                {showStats ? 'visible' : 'hidden'}
+              </ListItem>
               {components.map((component) => (
                 <ListItem key={component.key} heading={component.heading} href={component.href}>
                   {component.description}
                 </ListItem>
               ))}
+              <ListItem key='editor' heading='editor' href='/editor' />
+              <Button size='sm' className='text-xs' variant='outline' onClick={() => window.location.reload()}>
+                refresh
+              </Button>
             </ul>
           </NavigationMenuContent>
         </NavigationMenuItem>
@@ -124,9 +149,9 @@ const ListItem = React.forwardRef<React.ElementRef<'a'>, React.ComponentPropsWit
             )}
             {...props}
           >
-            <div className='text-sm font-medium leading-none'>{heading}</div>
+            <div className='text-xs font-medium leading-none'>{heading}</div>
             {/* eslint-disable-next-line tailwindcss/classnames-order*/}
-            <p className='line-clamp-2 text-sm leading-snug text-muted-foreground'>{children}</p>
+            <p className='line-clamp-2 text-xs leading-snug text-muted-foreground'>{children}</p>
           </a>
         </NavigationMenuLink>
       </li>
